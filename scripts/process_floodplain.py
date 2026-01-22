@@ -1,8 +1,8 @@
-'''
+"""
 Create ply or shp from pixel cloud
 
 Copyright (c) 2018, CNES
-'''
+"""
 
 import argparse
 import os
@@ -231,9 +231,9 @@ class Floodplain(object):
 
     # Start the bathy extraction either with multiprocessing or not
     def compute_fpdem_pointcloud_boundaries(self):
-        '''
+        """
         Extract bathymetry FPDEM
-        '''
+        """
 
         res_data = pd.DataFrame()
 
@@ -272,12 +272,12 @@ class Floodplain(object):
 
     #
     def process_data(self, pixc_file, vec_file):
-        '''
+        """
         Main routine, processing the PIXC and extracting the bathymetry points
 
         :param pixc_file: list of PIXC
         :param vec_file: list of PIXCVec
-        '''
+        """
 
         try:
             # Get cycle and create directory
@@ -445,12 +445,12 @@ class Floodplain(object):
             return pd.DataFrame()
 
     def compute_bathtub_method(self, water):
-        '''
+        """
         Recover all points present on the water contour obtained with the bathtub ring method
 
         :param water: dataframe with PIXC points info
         :return: dataframe with contours points, polygons
-        '''
+        """
         in_v_classif = water["classification"].values
         in_height = water["height"].values
         in_sig0 = water["sig0"].values
@@ -480,9 +480,9 @@ class Floodplain(object):
         return df
 
     def write_fpdem_pointcloud_output(self):
-        '''
+        """
         Write the FPDEM results into a netcdf (point clouds format)
-        '''
+        """
         # Combine outputs into on product
         if len(self.res_pointcloud) > 0:
             try:

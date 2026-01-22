@@ -1,11 +1,11 @@
 # -*- coding: utf8 -*-
-'''
+"""
 Reader for netcdf file
 Convert netcdf files to geopandas dataframe
 Pixel cloud reader using geopandas
 
 Copyright (c) 2018 CNES. All rights reserved.
-'''
+"""
 
 import logging
 import pandas as pd
@@ -28,12 +28,12 @@ EARTH_RADIUS = 6371000.
 class PixcReader():
 
     def __init__(self, polygon_mask, pixc: str, vec: str = None):
-        '''
+        """
         Read pixel cloud file and vec file.
         
         :param pixc: filename of the pixel cloud file
         :param vec: filename of the vec file
-        '''
+        """
 
         logging.info(f'PIXC: {pixc}')
         
@@ -146,13 +146,13 @@ def textjoin(text):
     return text
 
 def write_raster_ungridded(data, filename):
-    '''
+    """
     Write the file with FPDEm point clouds results
 
     :param data: dataframe with points information
     :param filename: name of the output file
     :return:
-    '''
+    """
 
     logging.info('Writing FPDEM pointcloud file')
 
@@ -239,3 +239,130 @@ def write_raster_ungridded(data, filename):
     fpdem_ungridded_qual_var[:] = data.variables["fpdem_ungridded_qual"]
     time_var[:] = data.variables["time"]
 
+def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
+                         out_image: np.array, out_dist_min_2d: np.array,
+                         out_dist_mean_2d: np.array, qual_flag: np.array,
+                         resolution: float, espg: str):
+    """
+    Write output raster netcdf file
+
+    :param filename: Name of the raster file
+    :param mode: latlon or utm
+    :param x: Array of x (longitude)
+    :param y: Array of y (latitude)
+    :param out_image:
+    :param out_dist_min_2d: Minimum of the distance between neighbors
+    :param out_dist_mean_2d: Mean distance between neighbors
+    :param qual_flag: Array of raster pixels' quality flag
+    :param resolution: Resolution in degrees for latlon or meters for utm
+    :param espg: EPSG of the raster
+    """
+
+    logging.info('Writing FPDEM raster file')
+
+    ds = Dataset(filename, 'w')
+    ds.Conventions = "CF-1.7"
+    ds.title = "Level 2 KaRIn High Rate FPDEM Gridded Data Product"
+    ds.institution = "CNES"
+    ds.source = "Large scale Simulator"
+    ds.history = "None"
+    ds.platform ="SWOT"
+    ds.references = "None"
+    ds.reference_document = "None"
+    ds.contact = "damien.desroches@cnes.fr"
+    ds.coordinate_reference_system = espg
+    ds.sampling = resolution
+    ds.short_name = "L2_HR_FPDEM_Gridded"
+    ds.descriptor_string = filename.split('_')[5]
+    ds.crid = "Dx0000"
+    ds.product_version = "1"
+    ds.pge_name = "Pge_v0"
+    ds.pge_version = "1"
+    ds.time_coverage_start = filename.split('_')[6]
+    ds.time_coverage_end = filename.split('_')[7]
+    ds.geospatial_lon_min = np.min(y)
+    ds.geospatial_lon_max = np.max(y)
+    ds.geospatial_lat_min = np.min(x)
+    ds.geospatial_lat_max = np.max(x)
+
+    if mode == 'latlon':
+        x_dim = ds.createDimension('latitude', len(y))
+        y_dim = ds.createDimension('longitude', len(x))
+
+        coordinate_system = osr.SpatialReference()
+        coordinate_system.ImportFromEPSG(4326)
+
+        crs = ds.createVariable("crs", 'S1')
+        crs.long_name = 'CRS Definition'
+        crs.grid_mapping_name = 'latitude_longitude'
+        crs.geographic_crs_name = 'WGS 84'
+        crs.reference_ellipsoid_name = 'WGS 84'
+        crs.horizontal_datum_name = 'WGS_1984'
+        crs.prime_meridian_name = 'Greenwich'
+        crs.longitude_of_prime_meridian = 0.
+        crs.semi_major_axis = 6378137.
+        crs.inverse_flattening = 298.257223563
+        crs.crs_wkt = coordinate_system.ExportToWkt()
+        crs.spatial_ref = coordinate_system.ExportToWkt()
+        crs.comment = 'Geodetic lat/lon coordinate reference system.'
+
+        x_var = ds.createVariable("latitude", "float64", ("latitude"), fill_value=9.969209968386869e+36)
+        x_var.long_name = 'latitude (positive N, negative S)'
+        x_var.standard_name = 'latitude'
+        x_var.units = 'degrees_north'
+        x_var.valid_min = -80
+        x_var.valid_max = 80
+        x_var.comment = textjoin("""
+                Latitude [-80,80] (degrees north of equator) of
+                the pixel.""")
+
+        y_var = ds.createVariable("longitude", "float64", ("longitude"), fill_value=9.969209968386869e+36)
+        y_var.long_name = 'longitude (degrees East)'
+        y_var.standard_name = 'longitude'
+        y_var.units = 'degrees_east'
+        y_var.valid_min = -180
+        y_var.valid_max = 180
+        y_var.comment = textjoin("""
+                Longitude [-180,180] (east of the Greenwich meridian) of
+                the pixel.""")
+
+        z_var = ds.createVariable("elevation", "float32", ("latitude", "longitude"), fill_value=9.96921e+36)
+        z_var.long_name = 'surface elevation above geoid'
+        z_var.grid_mapping = 'crs'
+        z_var.units = 'meters'
+        z_var.valid_min = -9999
+        z_var.valid_max = 9999
+        z_var.comment = textjoin("""Surface elevation of the pixel above the geoid and after using models to subtract the effects of tides (solid_earth_tide, load_tide_fes, pole_tide).""")
+
+        min_dist_var = ds.createVariable("distance_to_closest", "float64", ("latitude", "longitude"), fill_value=9.96921e+36)
+        min_dist_var.long_name = 'distance to closest boundary pixel'
+        min_dist_var.grid_mapping = 'crs'
+        min_dist_var.units = 'meters'
+        min_dist_var.valid_min = 0
+        min_dist_var.valid_max = 999999
+        min_dist_var.comment = textjoin("""Distance to closest boundary pixel""")
+
+        mean_dist_var = ds.createVariable("mean_distance", "float64", ("latitude", "longitude"), fill_value=9.96921e+36)
+        mean_dist_var.long_name = 'mean distance to selected boundaries pixels'
+        mean_dist_var.grid_mapping = 'crs'
+        mean_dist_var.units = 'meters'
+        mean_dist_var.valid_min = 0
+        mean_dist_var.valid_max = 999999
+        mean_dist_var.comment = textjoin("""Mean distance to selected boundaries pixels""")
+
+        qual_var = ds.createVariable("fpdem_gridded_qual", "u1", ("latitude", "longitude"), fill_value=255)
+        qual_var.long_name = 'DEM quality flag'
+        qual_var.grid_mapping = 'crs'
+        qual_var.flag_meanings = 'good bad'
+        qual_var.flag_values = '1 2 3 4'
+        qual_var.units = 'None'
+        qual_var.valid_min = 1
+        qual_var.valid_max = 4
+        qual_var.comment = textjoin("""Gridded floodplain DEM quality flag""")
+
+    x_var[:] = y
+    y_var[:] = x
+    z_var[:, :] = out_image
+    min_dist_var[:, :] = out_dist_min_2d
+    mean_dist_var[:, :] = out_dist_mean_2d
+    qual_var[:, :] = qual_flag

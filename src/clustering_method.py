@@ -1,10 +1,10 @@
 # -*- coding: utf8 -*-
-'''
+"""
 Calculate direct method using clustering algorithm (KMeans)
 When the identified water body is classified as 'WATER_LAND'
 
 Copyright (c) 2018, CNES
-'''
+"""
 
 import os
 import logging
@@ -64,12 +64,12 @@ class Clustering_Method(object):
         self.sub_img_obs = self.sub_img_flat[self.mask_data]
     #
     def normalize_data(self, filter_method='zscore', contamination='auto', random_state=42):
-        '''
+        """
         :param filter_method:
         :param contamination:
         :param random_state:
         :return:
-        '''
+        """
         logging.info('    Normalizing the 4 parameters (lon, lat, h, sig0) for clustering')
         if self.sub_img_obs is None:
             self.flat_img()
@@ -159,11 +159,11 @@ class Clustering_Method(object):
 
     #
     def clustering_method(self, method='kmeans'):
-        '''
+        """
 
         :param method:
         :return:
-        '''
+        """
         logging.info(f'    Performing clustering with algorithm {method}')
         nb_cluster = 3
         random_state = 42
@@ -290,9 +290,9 @@ class Clustering_Method(object):
 
     #
     def clustering_umap_hdbscan(self):
-        '''
+        """
 
-        '''
+        """
         model_umap = HDBSCAN(min_cluster_size=int(self.data_umap.shape[0]*0.01)).fit(self.data_umap)
         self.labels_umap = model_umap.labels_
 
@@ -325,12 +325,12 @@ class Clustering_Method(object):
 
     #
     def get_water_soil_labels(self, water_extract, pekel_0_100_poly, poly_sword):
-        '''
+        """
         :param water_extract:
         :param pekel_0_100_poly:
         :param poly_sword:
         :return:
-        '''
+        """
         logging.info('    Get the labels for soil and for water')
 
         labels_present = list(set(self.labels))

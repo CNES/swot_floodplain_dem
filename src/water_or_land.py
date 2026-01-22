@@ -1,9 +1,9 @@
 # -*- coding: utf8 -*-
-'''
+"""
 Create ply file from a list of pixel cloud files
 
 Copyright (c) 2018, CNES
-'''
+"""
 
 import os
 import logging
@@ -18,7 +18,7 @@ from scipy.stats import skew, probplot, kurtosis, zscore
 
 def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel_occ_X_100,
                                           min_size=1000, connectivity=1, plot='no', outpath='', cycle='007'):
-    '''
+    """
     Filter PIXC DataFrame depending on classification
     and extract arrays for lat, lon, range, azimuth, h, sig0 and classification
     which are then filtered to remove isolated points and clustered nto different labels
@@ -34,7 +34,7 @@ def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel
     :param outpath: path of output directory to plot figures
     :param cycle: cycle number of the studied PIXC
     :return:
-    '''
+    """
 
     # Select all points with classification 3 and 4
     subset_all = water.loc[(water["classification"] == 3) | (water["classification"] == 4)]
@@ -130,7 +130,7 @@ def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel
            azimuth_index_tab, range_index_tab, latitude_tab, longitude_tab
 
 def compute_subwater_extract_from_label(water, label_tab, azimuth_index_tab, range_index_tab, label):
-    '''
+    """
     Filter the PIXC DataFrame to get only the points for the selected water body/label
 
     :param water: DataFrame of PIXC points info
@@ -139,7 +139,7 @@ def compute_subwater_extract_from_label(water, label_tab, azimuth_index_tab, ran
     :param range_index_tab: array of range
     :param label: integer with label value
     :return: water_filtered -> DataFrame
-    '''
+    """
     ind = np.where(label_tab == label)
     azimuth_index_filt = azimuth_index_tab[ind]
     range_index_filt = range_index_tab[ind]
@@ -156,13 +156,13 @@ def compute_subwater_extract_from_label(water, label_tab, azimuth_index_tab, ran
     return water_filtered
 
 def remove_outliers_in_height(h, sig0):
-    '''
+    """
     Filter outliers from h and sig0 arrays using zscore on h
 
     :param h: list of height
     :param sig0: list of sig0
     :return: h, sig0
-    '''
+    """
     zvalue = 2.7
     zh = zscore(h)
     h = h[np.where(np.abs(zh) < zvalue)]
@@ -170,12 +170,12 @@ def remove_outliers_in_height(h, sig0):
     return h, sig0
 
 def get_h_sig0_and_filter(water):
-    '''
+    """
     Extract h and sig0 from DatafRame and filter outliers
 
     :param water: DataFrame of PIXC points info
     :return: h, sig0
-    '''
+    """
     h = water['height'].values
     sig0 = water['sig0'].values
 
@@ -188,13 +188,13 @@ def get_h_sig0_and_filter(water):
     return h, sig0
 
 def compute_and_plot_histogram(water):
-    '''
+    """
     Obtain the density histograms for h and sig0
 
     :param water: DataFrame of PIXC points info
     :param plot: yes or no
     :return: h histo info, sig0 histo info
-    '''
+    """
     h, sig0 = get_h_sig0_and_filter(water)
 
     # Get histograms for height and sig0
@@ -204,11 +204,11 @@ def compute_and_plot_histogram(water):
     return (counts_h, bins_h), (counts_sig, bins_sig)
 
 def determine_normality_parameters(water):
-    '''
+    """
     Obtain the normality parameters for the h and sig0 array of a particular water body/label
     :param water: DataFrame of PIXc points info
     :return: all normality parameters
-    '''
+    """
     h, sig0 = get_h_sig0_and_filter(water)
 
     meds = np.nanmedian(sig0)
@@ -230,7 +230,7 @@ def determine_normality_parameters(water):
     return meds, sh, ss, kh, ks, r2_h, r2_s
 
 def determine_water_body_type(choice, meds, sk_h, sk_s, ku_h, ku_s, ratio_pekel, ratio_sword):
-    '''
+    """
     Determine the category (land, water or water_land) of a particular water body/label depending on normality parameters
 
     :param choice: list of possible choices ['WATER', 'WATER_LAND', 'LAND']
@@ -242,7 +242,7 @@ def determine_water_body_type(choice, meds, sk_h, sk_s, ku_h, ku_s, ratio_pekel,
     :param ratio_pekel: percentage of points in label present in Pekel polygon
     :param ratio_sword: percentage of points in label present in SWORD polygon
     :return: water_body_type
-    '''
+    """
     if 'WATER_LAND' in choice:
         # TODO: tests are currently performed to evaluate the changes in the categorization
         if ratio_sword > 0.3 or meds > 17.:
@@ -306,7 +306,7 @@ def determine_water_body_type(choice, meds, sk_h, sk_s, ku_h, ku_s, ratio_pekel,
 def find_body_category(water_l, pekel_0_100_poly, poly_sword,
                        plot='no', choices=['WATER', 'WATER_LAND', 'LAND'],
                        cycle='007', label=1, output_path=''):
-    '''
+    """
     Get the density histograms for h and sig0
     and determine if the water body/label is water, land or a mix of both
 
@@ -319,7 +319,7 @@ def find_body_category(water_l, pekel_0_100_poly, poly_sword,
     :param label: number of the studied label
     :param output_path: directory of the output for saving plots
     :return: water_type, categ_params
-    '''
+    """
     # Categorizing the detected water body into land, water or water_land
     h_hist, sig_hist = compute_and_plot_histogram(water_l)
 

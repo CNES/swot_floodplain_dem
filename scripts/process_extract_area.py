@@ -1,9 +1,9 @@
 # -*- coding: utf8 -*-
-'''
+"""
 Create raster from floodplain dem pixel cloud
 
 Copyright (c) 2018, CNES
-'''
+"""
 
 import os
 import sys
@@ -72,19 +72,19 @@ class Extract_Area(object):
             sys.exit()
         res_data['lab_dbscan'] = gdf_lab.lab_dbscan
         #
-        N_cluster = len(np.unique(gdf_lab.lab_dbscan.values))
-        logging.info(f'There are {N_cluster} clusters (on which to extract polygons for rasterization)')
+        n_cluster = len(np.unique(gdf_lab.lab_dbscan.values))
+        logging.info(f'There are {n_cluster} clusters (on which to extract polygons for rasterization)')
         # Extract Polygons
         polygons = []
-        for label in range(N_cluster):
+        for label in range(n_cluster):
             res_extract2 = res_data[res_data.lab_dbscan == label].copy()
             if len(res_extract2) > 0:
                 # Get utm coordinates
                 res_extract2.loc[:, 'geometry'] = gpd.points_from_xy(res_extract2.longitude, res_extract2.latitude)
                 #res_extract2.loc[:, 'geometry_utm'] = gpd.points_from_xy(res_extract2.x, res_extract2.y)
-                concave_hull = gpd.GeoSeries([MultiPoint(res_extract2['geometry'].values)]).concave_hull(ratio=self.ch_ratio,
-                                                                                                         allow_holes=True)
-            polygons.append(concave_hull.geometry.values[0])
+                cncv_hl = gpd.GeoSeries([MultiPoint(res_extract2['geometry'].values)]).concave_hull(ratio=self.ch_ratio,
+                                                                                                    allow_holes=True)
+            polygons.append(cncv_hl.geometry.values[0])
         polygons = shapely.unary_union(gpd.GeoDataFrame(geometry=polygons, crs=4326))
         polygons = list(polygons.geoms)
         shp.polygons_to_file(self.output_file, polygons)

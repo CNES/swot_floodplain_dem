@@ -19,12 +19,12 @@ except:
 ########################################################################################################################
 # Extract the polygon used for the mask from PLD data
 def get_PLD_mask(lake_id, pld_path, pixc):
-    '''
+    """
     :param lake_id:
     :param pld_path:
     :param pixc:
     :return:
-    '''
+    """
     dist_buffer = 0.01 # in degrees because the PLD polygon is in EPSG:4326 (WGS84)
 
     ind_name = pixc.rfind('/')+1
@@ -56,11 +56,11 @@ def get_PLD_mask(lake_id, pld_path, pixc):
 
 # Extract the polygon used for the mask from Pekel data
 def get_Pekel_mask(pekel_path, pixc_tiles_geom):
-    '''
+    """
     :param pekel_path:
     :param pixc_tiles_geom:
     :return:
-    '''
+    """
     # Extract (approximately) boundaries of pixc tile
     tile_geom_wkt = [shapely.wkt.loads(pixc_tiles_geom.wkt)]
 
@@ -77,13 +77,13 @@ def get_Pekel_mask(pekel_path, pixc_tiles_geom):
 
 # Extract the Pekel polygon of the selected occurrences occ_min, occ_max; and add a buffer if wanted
 def extract_Pekel_polygon(data_Pekel, occ_min=0, occ_max=100, bufsize=0.01):
-    '''
+    """
     :param data_Pekel:
     :param occ_min:
     :param occ_max:
     :param bufsize:
     :return:
-    '''
+    """
     # Mask Pekel
     shape_gen = ((shape(s), v) for s, v in shapes(data_Pekel[1],
                                                   mask=((data_Pekel[1] > occ_min) & (data_Pekel[1] <= occ_max)),
@@ -121,12 +121,12 @@ def get_tiles_geom(gtg_tile_to_open_forMask, gtg_path_fname_to_orbits):
 
 # Select utm coordinates or zone number or zone letter depending on the choice made
 def utm_to_latlon(coords, cflag):
-    '''
+    """
 
     :param coords:
     :param cflag:
     :return:
-    '''
+    """
     if cflag == 1:
         utm_x = utm.from_latlon(coords[1], coords[0])[0] # lon
         utm_y = utm.from_latlon(coords[1], coords[0])[1] # lat
@@ -138,14 +138,14 @@ def utm_to_latlon(coords, cflag):
 
 #  Retrieve the information about the reaches and nodes present on the studied region provided as tiles' info
 def get_reach_node_info(pixc_tiles_geom, sword_path, hydrobasin_lv1_file, hydrobasin_lv2_file):
-    '''
+    """
 
     :param pixc_tiles_geom:
     :param sword_path:
     :param hydrobasin_lv1_file:
     :param hydrobasin_lv2_file:
     :return:
-    '''
+    """
     # Get hydrobasin number corresponding to PIXC tile
     gdf_hydrobasin1 = gpd.read_file(hydrobasin_lv1_file)
     gdf_hydrobasin2 = gpd.read_file(hydrobasin_lv2_file)
@@ -174,12 +174,12 @@ def get_reach_node_info(pixc_tiles_geom, sword_path, hydrobasin_lv1_file, hydrob
 
 # Retrieve the SWORD polygon using reaches info and apply a buffer if wanted
 def get_poly_sword_from_reach(gdf_sword_reaches, buffer_size=0):
-    '''
+    """
 
     :param gdf_sword_reaches:
     :param buffer_size:
     :return:
-    '''
+    """
     gdf_sword_reaches = gdf_sword_reaches.explode(index_parts=True)
 
     gdf_reach_poly = gpd.GeoDataFrame()
