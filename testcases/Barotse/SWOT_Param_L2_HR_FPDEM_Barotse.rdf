@@ -18,7 +18,7 @@ PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_B
 # Output info
 #
 # Output directory
-output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output
+output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output_test
 
 # Output filename extensions
 tile name = 15S22E

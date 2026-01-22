@@ -7,6 +7,7 @@ Copyright (c) 2018, CNES
 
 import os
 import logging
+import argparse
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -19,6 +20,8 @@ from rasterio.io import MemoryFile
 from scipy import interpolate
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
+
+import my_rdf_file as my_rdf
 
 from names import FPDEM_BASENAME, FPDEM_RASTER_BASENAME, FPDEM_POINTCLOUD_BASENAME, MASK_SUFFIX, compute_name
 
@@ -44,7 +47,7 @@ class FPDEM_Raster(object):
 
         self.output_directory = param.getValue("output directory").split(" ")[0]
 
-        if input_file == None:
+        if input_file is None:
             self.input_file = compute_name(self.output_directory, FPDEM_POINTCLOUD_BASENAME,
                                            param.getValue("tile name"),
                                            param.getValue("first date name"),
@@ -52,7 +55,7 @@ class FPDEM_Raster(object):
         else:
             self.input_file = input_file
 
-        if input_file == None:
+        if input_file is None:
             self.output_file = compute_name(self.output_directory, FPDEM_RASTER_BASENAME,
                                             param.getValue("tile name"),
                                             param.getValue("first date name"),
@@ -60,7 +63,7 @@ class FPDEM_Raster(object):
         else:
             self.output_file = output_file
 
-        if mask == None:
+        if mask is None:
             self.mask = os.path.join(self.output_directory, FPDEM_BASENAME + MASK_SUFFIX)
         else:
             self.mask = mask
@@ -70,13 +73,14 @@ class FPDEM_Raster(object):
             self.mode = param.getValue("mode").split(" ")[0]
             self.plot = param.getValue("plot").split(" ")[0]
 
+        self.espg = 4326
+
     def load_input_fpdem_raster(self):
         """
         Loading the FPDEM ungridded netcdf using xarray
         """
         cloud_xr = xr.open_dataset(self.input_file)
         self.cloud_df_raster = cloud_xr.to_dataframe()
-        self.espg = 4326
 
     def compute_fpdem_raster(self):
         self.compute_raster_exotic()
@@ -398,3 +402,20 @@ def toFromUTM(shp, proj, inv=False):
         newcoord = [[[proj(*point, inverse=inv) for point in linring] for linring in poly] for poly in coords]
 
     return shpgeo.shape({'type': shptype, 'coordinates': tuple(newcoord)})
+
+# Main program
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Compute fpdem raster product")
+    parser.add_argument("parameter_file", help="parameter_file (*.rdf)")
+    args = parser.parse_args()
+    parameters = my_rdf.myRdfReader(args.parameter_file)
+
+    level = getattr(logging, "INFO")
+    logging.basicConfig(filename=None, format='%(asctime)s [%(levelname)s] %(message)s', level=level)
+
+    fpdem_raster = FPDEM_Raster(parameters)
+    fpdem_raster.load_input_fpdem_raster()
+    fpdem_raster.compute_fpdem_raster()
+    fpdem_raster.write_fpdem_raster()
+    logging.info('Rasterization of FPDEM product was performed')

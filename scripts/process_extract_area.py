@@ -8,6 +8,7 @@ Copyright (c) 2018, CNES
 import os
 import sys
 import logging
+import argparse
 import numpy as np
 import geopandas as gpd
 import xarray as xr
@@ -15,6 +16,10 @@ import shapely
 from shapely.geometry import MultiPoint
 
 import shp as shp
+import my_rdf_file as my_rdf
+
+from names import (FPDEM_BASENAME, POLYGON_SUFFIX, FPDEM_POINTCLOUD_BASENAME,
+                   MASK_SUFFIX, FPDEM_RASTER_BASENAME, compute_name)
 
 class Extract_Area(object):
     """
@@ -33,13 +38,18 @@ class Extract_Area(object):
         :param ch_ratio: concave hull ratio to extract point cloud contours
         """
 
-        if input_file == None:
-            self.input_file = param.getValue("input file")
+        self.output_directory = param.getValue("output directory").split(" ")[0]
+
+        if input_file is None:
+            self.input_file = compute_name(self.output_directory, FPDEM_POINTCLOUD_BASENAME,
+                                           param.getValue("tile name"),
+                                           param.getValue("first date name"),
+                                           param.getValue("last date name"))
         else:
             self.input_file = input_file
 
-        if input_file == None:
-            self.output_file = param.getValue("output file")
+        if input_file is None:
+            self.output_file = os.path.join(self.output_directory, FPDEM_BASENAME+MASK_SUFFIX)
         else:
             self.output_file = output_file
 
@@ -88,3 +98,19 @@ class Extract_Area(object):
         polygons = shapely.unary_union(gpd.GeoDataFrame(geometry=polygons, crs=4326))
         polygons = list(polygons.geoms)
         shp.polygons_to_file(self.output_file, polygons)
+
+# Main program
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Compute extent mask between min and max water level")
+    parser.add_argument("parameter_file", help="parameter_file (*.rdf)")
+    args = parser.parse_args()
+    parameters = my_rdf.myRdfReader(args.parameter_file)
+
+    level = getattr(logging, "INFO")
+    logging.basicConfig(filename=None, format='%(asctime)s [%(levelname)s] %(message)s', level=level)
+
+    extract_area = Extract_Area(parameters)
+    extract_area.load_input_extract_area()
+    extract_area.extract_area_polygons()
+    logging.info("Extraction of the area was performed")

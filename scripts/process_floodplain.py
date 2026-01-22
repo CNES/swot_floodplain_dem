@@ -156,7 +156,7 @@ class Floodplain(object):
                         self.inputpixcfiles.append(inputpixcfiles[i].rstrip('\n'))
                         self.inputvecfiles.append(inputvecfiles[k].rstrip('\n'))
                         find = True
-                if find == False:
+                if not find:
                     date_pixcvec = inputpixcfiles[i].rstrip('\n').split("_PIXC_")[1].split("_PI")[0]
                     logging.info(f"PIXCVec file is missing for date {date_pixcvec} => replaced by PIXC")
                     self.inputpixcfiles.append(inputpixcfiles[i].rstrip('\n'))
@@ -223,7 +223,7 @@ class Floodplain(object):
                 self.polygon_mask = None
 
             # Creating output directory
-            if os.path.isdir(self.output_path) is False:
+            if not os.path.isdir(self.output_path):
                 os.mkdir(self.output_path)
 
             logging.info(f"{len(self.inputvecfiles)} PIXC/PIXCVec couple files will be processed")
@@ -430,7 +430,7 @@ class Floodplain(object):
             logging.info('Create intermediary results (i.e., FPDEM results for each PIXC)')
             geom = gpd.points_from_xy(fpdem_land_pixel.longitude, fpdem_land_pixel.latitude)
             fpdem_land_pixel = gpd.GeoDataFrame(fpdem_land_pixel, geometry=geom, crs=water.crs)
-            filename_temp = f'{os.path.basename(pixc_file).replace('_PIXC', '').replace(".nc", "")}_resFPDEM.shp'
+            filename_temp = f'{os.path.basename(pixc_file).replace("_PIXC", "").replace(".nc", "")}_resFPDEM.shp'
             fpdem_land_pixel.to_file(os.path.join(self.output_path, f'cycle{cycle}', f'{filename_temp}'))
 
         except:
@@ -494,10 +494,10 @@ class Floodplain(object):
 
                 outputfile_root = os.path.join(self.output_path, FPDEM_BASENAME)
 
-                ply.gdf_to_file(outputfile_root + '.ply', res_pointcloud, mode="text")
+                ply.gdf_to_file(f"{outputfile_root}.ply", res_pointcloud, mode="text")
 
                 # Also write shp file
-                shp.gdf_to_file(outputfile_root + ".shp", res_pointcloud, index=True)
+                shp.gdf_to_file(f"{outputfile_root}.shp", res_pointcloud, index=True)
 
                 res_pointcloud_ds = res_pointcloud[['longitude', 'latitude', 'elevation', 'x', 'y', 'z',
                                                     'fpdem_ungridded_qual', 'time', 'lab_dbscan']].to_xarray()
@@ -533,4 +533,20 @@ class Floodplain(object):
         else:
             logging.warning("Output is empty for this dataset")
 
+# Main program
+if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description=
+                                     '''Compute fpdem intermediate product from multiple tiles of PIXC products 
+                                     and their associated PIXCVecRiver products.''')
+    parser.add_argument("parameter_file", help="parameter_file (*.rdf)")
+    args = parser.parse_args()
+
+    level = getattr(logging, "INFO")
+    logging.basicConfig(filename=None, format='%(asctime)s [%(levelname)s] %(message)s', level=level)
+
+    parameters = my_rdf.myRdfReader(args.parameter_file)
+    fpdem = Floodplain(parameters)
+    fpdem.compute_fpdem_pointcloud_boundaries()
+    fpdem.write_fpdem_pointcloud_output()
+    logging.info('Calculation of FPDEM was performed')
