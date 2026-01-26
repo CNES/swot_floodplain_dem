@@ -1,47 +1,104 @@
-# Nom du projet
-Si possible, ajoutez un logo ou une capture de l'application pour rendre votre page plus dynamique/attrayante.
+# FloodplainDEM
+The SWOT project FloodPlainDEM (or FPDEM) aims to determine and extract the dry bathymetry on different Area of Interest (AOI) like flood plains areas, rivers, lakes and even estuaries.  
+
+This document explains how to recover the FPDEM repository, create the conda environment, download PIXCs and launch the FPDEM code.
+
 
 - [Contexte](#contexte)
-- [Installation](#installation)
-- [Utilisation](#utilisation) 
-- [Liens utiles](#liens-utiles)
+- [Code download](#installation)
+- [Environment creation](#installation)
+- [PIXC download](#utilisation) 
+- [Code execution](...)
+<!-- - [Liens utiles](#liens-utiles) -->
 
 ## Contexte
 
-Décrivez en quelques phrases le concept ou l'objectif de ce projet. Pensez à préciser s'il s'agit d'un projet spatial ou non.
+Contacts :
+- Leader CNES : Damien Desroches
+- Other : Gwendoline Stéphan
 
-Listez les points de contact du projet :
-- Responsable CNES
-- Responsable technique
-- Autres
+The FPDEM algorithm contains 3 main scripts and 1 workflow script (which launches the 3 main scripts one after the other).
+- Workflow script : process_full_processing_floodplain.py
+- Main scripts: process_floodplain.py, process_extract_area.py, process_raster.py (run in this order by the workflow script)
 
-Vous pouvez également ajouter un lien vers le gitlab-pages du projet si vous en avez un.
 
-## Installation
+## Code download
 
-Décrivez les différentes étapes d'installation du projet pour quelqu'un qui partirait du dépôt GitLab cloné dans un environnement HPC. Pensez entre autres à :
+The code FPDEM can be obtained on the CNES gitlab: https://gitlab.cnes.fr/desrochesd/floodplain_dem#utilisation
 
-- Quel(s) module(s) importer ?
-- La liste de dépendances : est-elle bien renseignée dans un fichier requirements dans le dépôt ?
-- Y a-t-il des variables d'environnement à mettre en place ?
+Use the command git clone. 
 
-Vous pouvez lister les commandes dans des encadrés, entrecoupés d'explications.
+Note: The access needs to be configured beforehand in order to clone the floodplain repository. 
 
-```
-$ commande 1 
-$ commande 2   
-``` 
+## Environment creation
 
-## Utilisation
-
-Une fois le module installé, comment le lance-t-on ou lui fait-on appel ? Listez les différentes options avec si possible des illustrations du résultat obtenu. 
-
-Là-aussi, vous pouvez utiliser des encadrés pour le code.
+Within the FPDEM repository, the file FPDEM_eodag_env.yaml can be used to set up the FPDEM conda environment. 
 
 ```
-$ commande --option
-``` 
+$ conda env create -f FPDEM_eodag_env.yaml [-p <path_to_environment>] 
+```
 
+This environment must be activated before launching the code FPDEM.  
+
+## PIXC download
+
+First, the file ~/.config/eodag/eodag.yml needs to be set up to use the PIXC downloading script. The providers 'swot' and/or 'hydroweb_next' are the providers used in the code. For the former, the user needs to have an account on REGARDS. For the latter, access to hydroweb_next website is required, and an apikey is needed. 
+
+To download the pixel cloud products of the AOI, the user can use the code download_pixc_pixcvec.py. This code can be found inside the testcases directories in floodplain/run/testcase_XXX. 
+
+The downloading script uses Eodag. No provider is set up in the script, so it tries to find the products on the different providers if available. 
+
+In order to know the different parameters available to select the PIXC tiles, the following command can be used: 
+
+```
+$ python download_pixc_pixcvec.py -h
+```
+
+An example of a command can as follows: 
+
+```
+$ python download_pixc_pixcvec.py -d [downloading_directory] -prov hydroweb_next -prod SWOT_L2_HR_PIXC SWOT_L2_HR_PIXCVEC -pass 264 69 Right -c PIC0 -conv 1
+```
+
+where -d is the argument to choose the downloading directory, -pd the wanted products (here PIXC and PIXCVec), -p the pass 269, tile 69 and tile side Right, -c the CRID PIC0 and -cv the flag to choose if the user wants to convert the netcdf product into shapefile. 
+
+The script will start by looking onto the different providers to find a list of products corresponding to the user arguments set up. It will show the list and ask the user to continue to the downloading part if the answer is yes. 
+
+## Code execution
+
+The first step to run the FPDEM code is to go into one of the testcases directory located in /floodplain/run/. Several testcases are available: 
+
+- Orient (lake, France)
+- Barotse (floodplain/river, Zambia)
+- Lajeodo (river, Brazil)
+
+Four files are present in each testcase directory:
+- A readme file
+- The parameter file : SWOT_Param_L2_HR_FPDEM_XXX.rdf
+- The slurm file : fpdem.slurm
+- A notebook file : FPDEM_XXX_testcase.ipynb
+
+
+To launch the FPDEM code with slurm use the following command:
+```
+$ sbatch fpdem.slurm
+```
+
+To launch the code without slurm :
+```
+$ python ../../scripts/process_full_processing_floodplain.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+```
+or 
+```
+$ python ../../scripts/process_floodplain.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+$ python ../../scripts/process_extract_area.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+$ python ../../scripts/process_raster.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+```
+
+
+
+
+<span style="display:none;">
 ## Liens utiles
 - [Confluence de l'Usine Logicielle](https://confluence.cnes.fr/pages/viewpage.action?pageId=17961975)
     - [Manuel pour l'utilisation de GitLab](https://confluence.cnes.fr/display/USINELOG/GitLab+-+Manuel+utilisateur)
@@ -49,3 +106,5 @@ $ commande --option
     - [Manuel pour l'utilisation de GitLab-CI](https://confluence.cnes.fr/display/USINELOG/GitLab-CI)
 - [Demandes de support à l'UL](https://confluence.cnes.fr/display/USINELOG/Les+demandes+de+support)
 - Vos propres pages de documentation :D
+</span>
+

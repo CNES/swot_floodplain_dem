@@ -1,3 +1,10 @@
+# -*- coding: utf8 -*-
+'''
+Intersect PIXC with Pekel, PLD or SWORD
+
+Copyright (c) 2018, CNES
+'''
+
 import logging
 import numpy as np
 import pandas as pd

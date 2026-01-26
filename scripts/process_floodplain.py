@@ -1,5 +1,5 @@
 """
-Create ply or shp from pixel cloud
+Create ply, shp and netcdf with FPDEM points from pixel cloud
 
 Copyright (c) 2018, CNES
 """
@@ -20,8 +20,8 @@ from functools import partial
 
 import my_rdf_file as my_rdf
 import my_hull as my_hull
-import ply as ply
-import shp as shp
+import toply as ply
+import toshp as shp
 
 from nc import PixcReader, write_raster_ungridded
 

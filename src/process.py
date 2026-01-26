@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 """
-Create ply file from a list of pixel cloud files
+MIscellaneous routines
 
 Copyright (c) 2018, CNES
 """
@@ -321,7 +321,7 @@ def final_filtering_FPDEM_results(data, filtering_pekel_end, pekel_X2_100_poly, 
     # TODO : should we change the distance to neighbors in meters instead of degrees?
     #  This would imply to convert latlon in utm.
     data = remove_isolated_points_dbscan(data, dist_neighbors=d_ngbr, nb_neighbors=n_ngbr)
-    data[['geometry', 'lab_dbscan']].to_file(os.path.join(output_path, 'results_fpdem_labels_dbscan.shp'))
+    data[['geometry', 'lab_dbscan']].to_file(os.path.join(output_path, 'results_fpdem_labels_dbscan.shp'), crs=4326)
     logging.info('The results of DBSCAN labeling were written in file "results_fpdem_labels_dbscan.shp" ')
 
     return data

@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 '''
-Create ply file from a list of pixel cloud files
+Create raster
 
 Copyright (c) 2018, CNES
 '''
@@ -45,7 +45,8 @@ class FPDEM_Raster(object):
         :param mask: Filename of the extract area process result
         """
 
-        self.output_directory = param.getValue("output directory").split(" ")[0]
+        if param:
+            self.output_directory = param.getValue("output directory").split(" ")[0]
 
         if input_file is None:
             self.input_file = compute_name(self.output_directory, FPDEM_POINTCLOUD_BASENAME,

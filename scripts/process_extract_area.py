@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 """
-Create raster from floodplain dem pixel cloud
+Extract polygon around FPDEM points
 
 Copyright (c) 2018, CNES
 """
@@ -15,7 +15,7 @@ import xarray as xr
 import shapely
 from shapely.geometry import MultiPoint
 
-import shp as shp
+import toshp as shp
 import my_rdf_file as my_rdf
 
 from names import (FPDEM_BASENAME, POLYGON_SUFFIX, FPDEM_POINTCLOUD_BASENAME,
@@ -37,8 +37,8 @@ class Extract_Area(object):
         :param output_file: Output filename
         :param ch_ratio: concave hull ratio to extract point cloud contours
         """
-
-        self.output_directory = param.getValue("output directory").split(" ")[0]
+        if param:
+            self.output_directory = param.getValue("output directory").split(" ")[0]
 
         if input_file is None:
             self.input_file = compute_name(self.output_directory, FPDEM_POINTCLOUD_BASENAME,

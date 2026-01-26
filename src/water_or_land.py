@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 """
-Create ply file from a list of pixel cloud files
+Categorize the clusters into WATER, WATER_LAND or LAND depending on normality parameters
 
 Copyright (c) 2018, CNES
 """
