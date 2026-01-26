@@ -1,52 +1,50 @@
 # FloodplainDEM
-The SWOT project FloodPlainDEM (or FPDEM) aims to determine and extract the dry bathymetry on different Area of Interest (AOI) like flood plains areas, rivers, lakes and even estuaries.  
+The SWOT project FloodPlainDEM (or FPDEM) aims to determine and extract the dry bathymetry on different Area of Interest (AOI) like flood plains, rivers, lakes and even estuaries.  
 
-This document explains how to recover the FPDEM repository, create the conda environment, download PIXCs and launch the FPDEM code.
+This document explains how to recover the FPDEM repository, create the conda environment, download PIXCs and launch the FPDEM algorithm.
 
 
 - [Contexte](#contexte)
-- [Code download](#installation)
-- [Environment creation](#installation)
-- [PIXC download](#utilisation) 
-- [Code execution](...)
+- [Code download](#code-download)
+- [Environment creation](#environment-creation)
+- [PIXC download](#pixc-download) 
+- [Code execution](#code-execution)
 <!-- - [Liens utiles](#liens-utiles) -->
 
 ## Contexte
 
 Contacts :
 - Leader CNES : Damien Desroches
-- Other : Gwendoline Stéphan
+- CS Group : Gwendoline Stéphan
 
 The FPDEM algorithm contains 3 main scripts and 1 workflow script (which launches the 3 main scripts one after the other).
 - Workflow script : process_full_processing_floodplain.py
-- Main scripts: process_floodplain.py, process_extract_area.py, process_raster.py (run in this order by the workflow script)
+- Main scripts: process_floodplain.py, process_extract_area.py, process_raster.py (launched in this order by the workflow script)
 
 
 ## Code download
 
-The code FPDEM can be obtained on the CNES gitlab: https://gitlab.cnes.fr/desrochesd/floodplain_dem#utilisation
+The FPDEM algorithm can be obtained on the CNES gitlab: https://gitlab.cnes.fr/desrochesd/floodplain_dem#utilisation
 
 Use the command git clone. 
 
-Note: The access needs to be configured beforehand in order to clone the floodplain repository. 
+NB: The access needs to be configured beforehand in order to clone the floodplain repository. 
 
 ## Environment creation
 
-Within the FPDEM repository, the file FPDEM_eodag_env.yaml can be used to set up the FPDEM conda environment. 
+Within the FPDEM repository, the file FPDEM_eodag_env.yml can be used to set up the FPDEM conda environment. 
 
 ```
 $ conda env create -f FPDEM_eodag_env.yaml [-p <path_to_environment>] 
 ```
 
-This environment must be activated before launching the code FPDEM.  
+This environment must be activated before launching the FPDEM algorithm.  
 
 ## PIXC download
 
-First, the file ~/.config/eodag/eodag.yml needs to be set up to use the PIXC downloading script. The providers 'swot' and/or 'hydroweb_next' are the providers used in the code. For the former, the user needs to have an account on REGARDS. For the latter, access to hydroweb_next website is required, and an apikey is needed. 
+First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading script. The providers 'swot' and 'hydroweb_next' are the providers used in the code. For 'swot', the user needs to have an account on REGARDS and set up the EMAIl and PASSWORD in eodag.yml. For 'hydroweb_next', access to hydroweb_next website is required, and an apikey is needed and needs to be set up in eodag.yml. 
 
-To download the pixel cloud products of the AOI, the user can use the code download_pixc_pixcvec.py. This code can be found inside the testcases directories in floodplain/run/testcase_XXX. 
-
-The downloading script uses Eodag. No provider is set up in the script, so it tries to find the products on the different providers if available. 
+To download the PIXC products encompassing the AOI, the user can use the code download_pixc_pixcvec.py located in tools/.
 
 In order to know the different parameters available to select the PIXC tiles, the following command can be used: 
 
@@ -54,15 +52,15 @@ In order to know the different parameters available to select the PIXC tiles, th
 $ python download_pixc_pixcvec.py -h
 ```
 
-An example of a command can as follows: 
+An example of a command to launch the code is: 
 
 ```
 $ python download_pixc_pixcvec.py -d [downloading_directory] -prov hydroweb_next -prod SWOT_L2_HR_PIXC SWOT_L2_HR_PIXCVEC -pass 264 69 Right -c PIC0 -conv 1
 ```
 
-where -d is the argument to choose the downloading directory, -pd the wanted products (here PIXC and PIXCVec), -p the pass 269, tile 69 and tile side Right, -c the CRID PIC0 and -cv the flag to choose if the user wants to convert the netcdf product into shapefile. 
+where -d is the argument to choose the downloading directory, -prov the provider, -prod the wanted products (here PIXC and PIXCVec), -pass the pass 269, tile 69 and tile side Right, -c the CRID PIC0 and -conv the flag to choose if the user wants to convert the netcdf product into shapefile. 
 
-The script will start by looking onto the different providers to find a list of products corresponding to the user arguments set up. It will show the list and ask the user to continue to the downloading part if the answer is yes. 
+The script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments. It will show the list and ask the user to continue to the downloading part. 
 
 ## Code execution
 
