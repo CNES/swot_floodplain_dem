@@ -1,0 +1,80 @@
+#
+swot:
+    priority: # Lower value means Lower priority (Default: 0)
+    search: # Search parameters configuration
+      type: StacSearch
+      api_endpoint: https://regards-swot-pp.sis.cnes.fr/api/v1/rs-catalog/stac/search
+      need_auth: true
+      pagination:
+        max_items_per_page: 10_000
+      discover_product_types:
+        fetch_url: https://regards-swot-pp.sis.cnes.fr/api/v1/rs-catalog/stac/collections/dynamic
+        results_entry: '$.links[?(@.rel="child")][*]'            
+        generic_product_type_id: '$.title.`sub(/^data:type=\(.*\) \\(.*/, SWOT_\\1)`'
+        generic_product_type_parsable_properties:
+          productType: '$.title.`sub(/^data:type=\(.*\) \\(.*/, SWOT_\\1)`'
+        # fix CESWOT-241
+        #generic_product_type_unparsable_properties:
+          # cloud cover search disabled for unknown product_type
+       #   metadata_mapping:
+       #     cloudCover: '$.null'
+        generic_product_type_parsable_metadata:
+          title: '$.title.`sub(/^data:type=\(.*\) \\(.*/, SWOT_\\1)`'
+      metadata_mapping:
+        productType:
+          - '{{"query":{{"data:type":{{"eq":"{productType#replace_str(r"^SWOT_","")}"}}}}}}'
+          # fix incorrect display with eodag 2.11
+          - '$.properties.productType'
+        startTimeFromAscendingNode:
+          - '{{"query":{{"end_datetime":{{"gte":"{startTimeFromAscendingNode#to_iso_utc_datetime}"}}}}}}'
+          - '$.properties.start_datetime'
+        completionTimeFromAscendingNode:
+          - '{{"query":{{"start_datetime":{{"lte":"{completionTimeFromAscendingNode#to_iso_utc_datetime}"}}}}}}'
+          - '$.properties.end_datetime'
+        geometry:
+          - '{{"intersects":{geometry#to_geojson}}}'
+          # whole world if None else $.geometry
+          - '($.geometry.`str()`.`sub(/^None$/, POLYGON((180 -90, 180 90, -180 90, -180 -90, 180 -90)))`)|($.geometry[*])'
+        # swot parameters needing to be sent as integers
+        swot:cycle_number:
+          - '{{"query":{{"swot:cycle_number":{{"eq":{swot:cycle_number}}}}}}}'
+          - '$.properties."swot:cycle_number"'
+        swot:pass_number:
+          - '{{"query":{{"swot:pass_number":{{"eq":{swot:pass_number}}}}}}}'
+          - '$.properties."swot:pass_number"'
+        swot:tile_number:
+          - '{{"query":{{"swot:tile_number":{{"eq":{swot:tile_number}}}}}}}'
+          - '$.properties."swot:tile_number"'
+    products:
+      GENERIC_PRODUCT_TYPE:
+        productType: '{productType}'
+    download:
+      type: HTTPDownload
+      base_uri: https://regards-swot-pp.sis.cnes.fr
+      flatten_top_dirs: true
+    auth:
+      type: TokenAuth
+      auth_uri: 'https://regards-swot-pp.sis.cnes.fr/api/v1/rs-authentication/oauth/token?grant_type=password&scope=swot&username={username}&password={password}'
+      token_type: json
+      token_key: access_token
+      headers:
+        Authorization: 'Basic Y2xpZW50OnNlY3JldA=='
+        Content-Type: 'application/json;charset=UTF-8'
+        Accept: 'application/json'
+      credentials:
+          username: [EMAIL]
+          password: [PASSWORD]
+
+hydroweb_next:
+    priority: # Lower value means lower priority (Default: 0)
+    search:   # Search parameters configuration
+        metadata_mapping:
+        spatial:pass_id:
+            - '{{"query":{{"spatial:pass_id":{{"eq":{spatial:pass_id}}}}}}}'
+            - '$.properties.spatial:pass_id'
+    auth:
+        credentials:
+            apikey: [PASSWORD]
+    download:
+        outputs_prefix:
+

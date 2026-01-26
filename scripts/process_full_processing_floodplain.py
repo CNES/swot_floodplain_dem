@@ -19,7 +19,7 @@ if __name__ == "__main__":
     print("")
     timer = my_timer.Timer()
     timer.start()
-     
+
     # Get parameters
     descr = "Compute fpdem intermediate product from multiple tiles of PIXC products and their associated PIXCVecRiver products."
     parser = argparse.ArgumentParser(description=descr)
