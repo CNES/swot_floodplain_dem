@@ -166,8 +166,8 @@ def get_reach_node_info(pixc_tiles_geom, sword_path, hydrobasin_lv1_file, hydrob
     for i in range(len(sword_nodes_path)):
         gdf_sword_nodes = gpd.read_file(sword_nodes_path[i])
         gdf_sword_reaches = gpd.read_file(sword_reaches_path[i])
-        gdf_sword_nodes_clipped = pd.concat([gdf_sword_nodes_clipped, gdf_sword_nodes.clip(mask)])
-        gdf_sword_reaches_clipped = pd.concat([gdf_sword_reaches_clipped, gdf_sword_reaches.clip(mask)])
+        gdf_sword_nodes_clipped = pd.concat([gdf_sword_nodes_clipped, gdf_sword_nodes.clip(pixc_tiles_geom)])
+        gdf_sword_reaches_clipped = pd.concat([gdf_sword_reaches_clipped, gdf_sword_reaches.clip(pixc_tiles_geom)])
 
     return gdf_sword_reaches_clipped, gdf_sword_nodes_clipped
 

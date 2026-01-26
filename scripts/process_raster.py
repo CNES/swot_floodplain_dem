@@ -356,8 +356,11 @@ class FPDEM_Raster(object):
             fig.colorbar(mat2, label="Elevation (m)", orientation="vertical", ax=ax2)
             fig.colorbar(mat3, label="Relative elevation variance", orientation="vertical", ax=ax3)
             fig.colorbar(mat4, label="Flag", orientation="vertical", ax=ax4)
-            fig.savefig(f'{os.path.join(self.output_directory, "plot_raster_variables.png")}')
-            plt.close(fig)
+            if self.plot == 'yes2':
+                plt.show()
+            else:
+                fig.savefig(f'{os.path.join(self.output_directory, "plot_raster_variables.png")}')
+                plt.close(fig)
 
     def write_fpdem_raster(self):
         """

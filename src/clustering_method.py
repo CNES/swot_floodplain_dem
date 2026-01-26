@@ -48,6 +48,7 @@ from water_or_land import find_body_category
 class Clustering_Method(object):
 
     def __init__(self, data, body_label, output_path, cycle, plot='no'):
+        """ Initialization of clustering method """
         self.data = data
         self.H, self.W, self.D = self.data.shape
         self.plot = plot
@@ -57,17 +58,19 @@ class Clustering_Method(object):
         self.outPath = output_path
         self.cycle = cycle
 
-    #
     def flat_img(self):
+        """ Flatten the 4D image and filter out NaN and negative values """
         self.sub_img_flat = self.data.reshape(-1, self.D)
         self.mask_data = ~((self.sub_img_flat == -1e6) | np.isnan(self.sub_img_flat)).any(axis=1)
         self.sub_img_obs = self.sub_img_flat[self.mask_data]
-    #
+
     def normalize_data(self, filter_method='zscore', contamination='auto', random_state=42):
         """
-        :param filter_method:
-        :param contamination:
-        :param random_state:
+        Normalization of the 4 image variables so none has a weight higher than the other for the clustering
+
+        :param filter_method: String of selected method
+        :param contamination: Selected contamination for the Isolation Forest method
+        :param random_state: Integer of random state for the Isolation Forest method
         :return:
         """
         logging.info('    Normalizing the 4 parameters (lon, lat, h, sig0) for clustering')
@@ -111,12 +114,16 @@ class Clustering_Method(object):
             axs[2].set_ylabel('sig0')
             axs[2].set_title('Filtered and scaled data')
 
-            fig.savefig(os.path.join(self.outPath,
-                                     f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_bodyLabel{self.body_label}.png'))
-            plt.close(fig)
+            if self.plot == 'yes2':
+                plt.show()
+            else:
+                fig.savefig(os.path.join(self.outPath,
+                                         f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_bodyLabel{self.body_label}.png'))
+                plt.close(fig)
 
     #
     def pca(self):
+        """ Principal Component Analysis """
         pca = PCA()
         self.var = np.var(self.sub_img_rshp_scaled, axis=0)
         self.data_pca = pca.fit_transform(self.sub_img_rshp_scaled)
@@ -134,12 +141,11 @@ class Clustering_Method(object):
         self.sub_img_tsne = self.sub_img_rshp_scaled[self.indices_ssech]
         tsne = TSNE(n_components=2, perplexity=40, random_state=42, init='pca')
         self.data_tsne = tsne.fit_transform(self.sub_img_tsne)
-        if self.plot[0:3] == 'yes':
+        if self.plot == 'yes2':
             plt.figure(figsize=(6, 4))
             plt.scatter(self.data_tsne[:, 0], self.data_tsne[:, 1], marker='+')
             plt.title('TSNE')
-            if self.plot == 'yes2':
-                plt.show()
+            plt.show()
 
     #
     def umap(self):
@@ -150,12 +156,11 @@ class Clustering_Method(object):
         self.indices_ssech_umap = np.random.choice(self.sub_img_rshp_scaled.shape[0], size=size_ech, replace=False)
         self.sub_img_umap = self.sub_img_rshp_scaled[self.indices_ssech_umap]
         self.data_umap = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1).fit_transform(self.sub_img_umap)
-        if self.plot[0:3] == 'yes':
+        if self.plot == 'yes2':
             plt.figure(figsize=(6, 4))
             plt.scatter(self.data_umap[:, 0], self.data_umap[:, 1], s=5, alpha=0.6)
             plt.title('UMAP')
-            if self.plot == 'yes2':
-                plt.show()
+            plt.show()
 
     #
     def clustering_method(self, method='kmeans'):
@@ -185,10 +190,6 @@ class Clustering_Method(object):
         gdf_data['clustLabel'] = self.labels
 
         if self.plot[0:3] == 'yes':
-
-        #     # TODO: Delete the below once the debug and parametrization phases are done
-        #     gdf_data.to_file(os.path.join(self.outPath,
-        #                                   f'cycle{self.cycle}/clust_results_cycle{self.cycle}_bodyLabel{self.body_label}.shp'))
 
             gdf_data['longitude'] = gdf_data.geometry.get_coordinates().x.values
             gdf_data['latitude'] = gdf_data.geometry.get_coordinates().y.values
@@ -237,9 +238,10 @@ class Clustering_Method(object):
             ax2.set_title("Sig0 after clustering filtering")
             if self.plot == 'yes2':
                 plt.show()
-            fig.savefig(os.path.join(self.outPath,
-                                     f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_h_sig0_bodyLabel{self.body_label}.png'))
-            plt.close(fig)
+            else:
+                fig.savefig(os.path.join(self.outPath,
+                                         f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_h_sig0_bodyLabel{self.body_label}.png'))
+                plt.close(fig)
 
             # Plot of clustering method
             colors = np.array(['red', 'teal', 'yellow'])[self.labels]
@@ -255,16 +257,17 @@ class Clustering_Method(object):
             ax.set_title(f'Clustering results: Label {self.body_label}')
             if self.plot == 'yes2':
                 plt.show()
-            fig.savefig(os.path.join(self.outPath,
-                                     f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_results_bodyLabel{self.body_label}.png'))
-            plt.close(fig)
+            else:
+                fig.savefig(os.path.join(self.outPath,
+                                         f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_results_bodyLabel{self.body_label}.png'))
+                plt.close(fig)
 
     #
     def clustering_tsne_hdbscan(self):
         model_tsne = HDBSCAN(min_cluster_size=int(self.data_tsne.shape[0]*0.01)).fit(self.data_tsne)
         self.labels_tsne = model_tsne.labels_
 
-        if self.plot[0:3] == 'yes':
+        if self.plot == 'yes2':
             unique_labels = np.unique(self.labels_tsne)
             cmap = plt.cm.get_cmap('viridis', len(unique_labels))
             colors = cmap(np.searchsorted(unique_labels, self.labels_tsne))
@@ -280,13 +283,11 @@ class Clustering_Method(object):
             sm.set_array([])
             cbar = plt.colorbar(sm, ax=ax)
             cbar.set_label('Labels')
-            if self.plot == 'yes2':
-                plt.show()
+            plt.show()
 
             cmap = plt.cm.viridis
             plt.scatter(self.data_tsne[:, 0], self.data_tsne[:, 1], c=self.labels_tsne, marker='+', cmap=cmap)
-            if self.plot == 'yes2':
-                plt.show()
+            plt.show()
 
     #
     def clustering_umap_hdbscan(self):
@@ -297,9 +298,9 @@ class Clustering_Method(object):
         self.labels_umap = model_umap.labels_
 
         mask_umap_valid = self.labels_umap != -1
-        mask_indice = self.indices_ssech_umap[mask_umap_valid]
+        # mask_indice = self.indices_ssech_umap[mask_umap_valid]
 
-        if self.plot[0:3] == 'yes':
+        if self.plot == 'yes2':
             unique_labels = np.unique(self.labels_umap)
             cmap = plt.cm.get_cmap('viridis', len(unique_labels))
             colors = cmap(np.searchsorted(unique_labels, self.labels_umap))
@@ -315,13 +316,11 @@ class Clustering_Method(object):
             sm.set_array([])
             cbar = plt.colorbar(sm, ax=ax)
             cbar.set_label('Labels')
-            if self.plot == 'yes2':
-                plt.show()
+            plt.show()
 
             cmap = plt.cm.viridis
             plt.scatter(self.data_umap[:, 0], self.data_umap[:, 1], c=self.labels_umap, marker='+', cmap=cmap)
-            if self.plot == 'yes2':
-                plt.show()
+            plt.show()
 
     #
     def get_water_soil_labels(self, water_extract, pekel_0_100_poly, poly_sword):
@@ -334,7 +333,7 @@ class Clustering_Method(object):
         logging.info('    Get the labels for soil and for water')
 
         labels_present = list(set(self.labels))
-        nb_labels = len(labels_present)
+        # nb_labels = len(labels_present)
         # print(f'nb_labels: {nb_labels}, {[[list(self.labels).count(i), int(i)] for i in set(self.labels)]}')
 
         self.sub_img_labeled_land = None

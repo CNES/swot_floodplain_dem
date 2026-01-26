@@ -92,8 +92,9 @@ def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel
         ax.set_title(f"All PIXC points after pre-processing")
         if plot == 'yes2':
             plt.show()
-        fig.savefig(f'{outpath}/cycle{cycle}/plot_all_pts_after_classif_filtering.png')
-        plt.close(fig)
+        else:
+            fig.savefig(f'{outpath}/cycle{cycle}/plot_all_pts_after_classif_filtering.png')
+            plt.close(fig)
 
     # Remove all points which are isolated
     water_tab = morphology.remove_small_objects(water_tab, min_size=min_size, connectivity=connectivity)
@@ -123,8 +124,9 @@ def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel
         ax.set_title(f"All labels after filtering of isolated points")
         if plot == 'yes2':
             plt.show()
-        fig.savefig(f'{outpath}/cycle{cycle}/plot_all_labels_position.png')
-        plt.close(fig)
+        else:
+            fig.savefig(f'{outpath}/cycle{cycle}/plot_all_labels_position.png')
+            plt.close(fig)
 
     return label_tab, count, classification_tab, height_tab, sig0_tab, \
            azimuth_index_tab, range_index_tab, latitude_tab, longitude_tab
@@ -187,7 +189,7 @@ def get_h_sig0_and_filter(water):
     sig0 = np.array([x for x in sig0 if x >= 0])
     return h, sig0
 
-def compute_and_plot_histogram(water):
+def compute_histogram(water):
     """
     Obtain the density histograms for h and sig0
 
@@ -321,7 +323,7 @@ def find_body_category(water_l, pekel_0_100_poly, poly_sword,
     :return: water_type, categ_params
     """
     # Categorizing the detected water body into land, water or water_land
-    h_hist, sig_hist = compute_and_plot_histogram(water_l)
+    h_hist, sig_hist = compute_histogram(water_l)
 
     if plot[0:3] == "yes":
         fig1, (ax11, ax12) = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))

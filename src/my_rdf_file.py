@@ -51,10 +51,10 @@ class myRdfReader(object):
         
         # 2 - Assign each line as a key of dictionary
         for line in rdf_lines:
-            
+
             # Consider line only if contain "=" (not empty, not a comment, ...)
-            if ( ("=" in line) and (not line.startswith("!")) ):
-                
+            if ("=" in line) and (not line.startswith("!")) and (not line.startswith("#")):
+
                 # 2.1 - Remove comment if exists
                 TMP_line = line.split("!")[0]
                 

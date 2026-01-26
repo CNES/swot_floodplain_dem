@@ -50,8 +50,10 @@ swot tiles file = /work/SWOT/swotdev/swotdev/stephag/orbits/swot_science_hr_2.0s
 #
 # Mask
 #
-use mask = 0  # 0 = no; 1 = yes (with PLD); 2 = yes (with Pekel); 3 = yes (with Sword)
-# Buffer in soil geometry (degrees)
+# To filter points around a specific lake, river, 
+# or filter only points present in Pekel occurrences (1->100%; with a buffer if mask_buffer_size != 0)
+# 0 : no; 1 : yes (with PLD); 2 : yes (with Pekel); 3 : yes (with Sword)
+use mask = 0# Buffer in soil geometry (degrees)
 mask buffer size = 0.02 # Optional parameter : only required if use mask >= 1
 # PLD info
 lake id = 2320116363 # Optional parameter : only required if use mask = 1
@@ -91,8 +93,6 @@ clustering water contour = concavehull # bathtub or concavehull
 
 # Pekel filtering :
 # At the beginning of the bathy extraction,
-# Filter out all points that are not in Pekel occurrences (i.e., removed if occurrence =0%)
-pekel filtering start = no # yes or no
 # Filtering Dark water, all PIXC points within Pekel occurrences > {chosen value}% are kept
 pekel percent for Dark Water = 90
 # At the end of the bathy extraction,
@@ -115,7 +115,7 @@ distance to neighbors = 0.001
 # All points with less meighbors than the chosen value are filtered out
 number of neighbors = 5
 
-# Labelling water bodies :
+# Labeling water bodies :
 # Remove objects smaller than or equal to chosen size
 water body min size = 500
 # Connectivity defining the neighborhood of a pixel

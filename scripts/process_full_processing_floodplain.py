@@ -23,12 +23,13 @@ if __name__ == "__main__":
     # Get parameters
     descr = "Compute fpdem intermediate product from multiple tiles of PIXC products and their associated PIXCVecRiver products."
     parser = argparse.ArgumentParser(description=descr)
-    parser.add_argument("parameter_file",
-                        help="parameter_file (*.rdf)")
+    parser.add_argument("parameter_file", help="parameter_file (*.rdf)")
     args = parser.parse_args()
 
     level = getattr(logging, "INFO")
     logging.basicConfig(filename=None, format='%(asctime)s [%(levelname)s] %(message)s', level=level)
+
+    print(args.parameter_file)
     parameters = my_rdf.myRdfReader(args.parameter_file)
 
     # Prepare output names

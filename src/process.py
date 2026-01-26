@@ -107,7 +107,7 @@ def extract_contiguous_water_points(water: gpd.GeoDataFrame,
     return water.loc[water['region'].isin(keep_regions)].copy()
 
 #
-def pre_processing_pixc(pixc_reader, cross_track_min, threshold, sig0_qual, filtering_pekel_start, pekel_0_100_poly):
+def pre_processing_pixc(pixc_reader, cross_track_min, threshold, sig0_qual):
     """
     Pre-processing/ filtering of the entire PIXC
 
@@ -136,11 +136,6 @@ def pre_processing_pixc(pixc_reader, cross_track_min, threshold, sig0_qual, filt
     # Select only points with a good sig0_qual
     if sig0_qual == 'yes':
         water = water.loc[(water.sig0_qual == 0)]
-
-    # Filter out all points if they are out of Pekel occurrences >0%
-    if filtering_pekel_start == 'yes':
-        pts_in = water.copy().clip(pekel_0_100_poly)
-        water = water[water.geometry.isin(pts_in.geometry)]
 
     return water, min_range_indices_to_remove
 

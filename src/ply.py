@@ -20,8 +20,7 @@ class MyPlyElement(PlyElement):
         super().__init__(name, properties, count, comments)
         
     @staticmethod
-    def describe(data, name, len_types={}, val_types={},
-                 comments=[]):
+    def describe(data, name, len_types={}, val_types={}, comments=[]):
         '''
         Construct a PlyElement from an array's metadata.
 
@@ -80,7 +79,6 @@ class MyPlyElement(PlyElement):
 
         return elt
 
-
     def _write_txt(self, stream):
         '''
         Save a PLY element to an ASCII-format PLY file.  The element may
@@ -112,8 +110,6 @@ class MyPlyElement(PlyElement):
 
         return '\n'.join(lines)
 
-
-            
 def gdf_to_file(filename: str, points: gpd.GeoDataFrame, mode: str ="text"):
     '''
     Write to Ply file (UTM coordinates)
@@ -122,16 +118,15 @@ def gdf_to_file(filename: str, points: gpd.GeoDataFrame, mode: str ="text"):
     :param points: GeoDataFrame ("latitude","longitude","height","x","y","z")
     :type IN_inputvecfiles: GeoPandas Dataframe
     ''' 
-    # Extract informations for header
+    # Extract information for header
     nb = points.shape[0]
-    zone_number = utm.latlon_to_zone_number(points.iloc[0]['latitude'],
-                                                              points.iloc[0]['longitude'])
+    zone_number = utm.latlon_to_zone_number(points.iloc[0]['latitude'], points.iloc[0]['longitude'])
     pos = 'N' if points.iloc[0]['latitude'] > 0 else 'S'
     # Utm coordinates to numpy array
-    vertex = np.array([tuple(value) for value in points[['x','y','z', 'elevation']].values],
-                 dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('elevation', 'f4')])
+    vertex = np.array([tuple(value) for value in points[['x', 'y', 'z', 'elevation']].values],
+                      dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('elevation', 'f4')])
     el = MyPlyElement.describe(vertex, 'vertex',
-                    comments=['projection: UTM {}{}'.format(zone_number, pos)])
+                               comments=['projection: UTM {}{}'.format(zone_number, pos)])
     if mode == "text":
         PlyData([el], text=True).write(filename)
     elif mode == "binary":

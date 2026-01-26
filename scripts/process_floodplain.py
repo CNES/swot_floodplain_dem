@@ -8,6 +8,7 @@ import argparse
 import os
 import logging
 import traceback
+import copy
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -30,7 +31,7 @@ from Pekel_Sword_PLD_intersect import (get_tiles_geom, get_PLD_mask, get_Pekel_m
                                        get_reach_node_info, get_poly_sword_from_reach)
 
 from process import (pre_processing_pixc, get_range_azimuth_extrema, prepare_clustering_image,
-                     find_attributes, remove_borders,filter_data_based_on_quality_flag,
+                     find_attributes, remove_borders, filter_data_based_on_quality_flag,
                      final_filtering_FPDEM_results, valid_date)
 
 from water_or_land import (compute_label_and_remove_small_object, compute_subwater_extract_from_label,
@@ -116,7 +117,6 @@ class Floodplain(object):
 
             # Filtering
             # Pekel filtering
-            self.filtering_pekel_start = param.getValue("pekel filtering start").split(" ")[0]
             self.filtering_pekel_val_DW = int(param.getValue("pekel percent for Dark Water").split(" ")[0])
             self.filtering_pekel_end = param.getValue("pekel filtering end").split(" ")[0]
             try:
@@ -177,6 +177,8 @@ class Floodplain(object):
             self.pekel_0_100_poly = extract_Pekel_polygon(self.data_pekel,
                                                           occ_min=0, occ_max=100,
                                                           bufsize=0.)
+
+            # Pekel polygon for filtering Dark Water points
             try:
                 logging.info(f'Get Pekel polygon for filtering Dark Water in PIXC: occurrence > {self.filtering_pekel_val_DW}%')
                 self.pekel_X_100_poly = extract_Pekel_polygon(self.data_pekel,
@@ -185,7 +187,9 @@ class Floodplain(object):
             except:
                 logging.warning(f"    No points in Pekel occurrences > {self.filtering_pekel_val_DW}% for this region")
                 self.pekel_X_100_poly = None
+
             # Pekel polygon for filtering the FPDEM points at the end of the bathy extraction
+            self.pekel_X2_100_poly = None
             if self.filtering_pekel_end == 'yes':
                 try:
                     logging.info(f'Get Pekel polygon for filtering bathy at the end: occurrence > {self.filtering_pekel_val}%')
@@ -213,9 +217,12 @@ class Floodplain(object):
                 self.polygon_mask = get_PLD_mask(self.lake_id, self.pld_path, self.inputpixcfiles[0])
             elif self.mask_flag == 2:
                 logging.info('Pekel Mask intersection will be performed')
-                self.polygon_mask = extract_Pekel_polygon(self.data_pekel,
-                                                          occ_min=0, occ_max=100,
-                                                          bufsize=self.mask_buffer)
+                if self.mask_buffer == 0.:
+                    self.polygon_mask = copy.copy(self.pekel_0_100_poly)
+                else:
+                    self.polygon_mask = extract_Pekel_polygon(self.data_pekel,
+                                                              occ_min=0, occ_max=100,
+                                                              bufsize=self.mask_buffer)
             elif self.mask_flag == 3:
                 logging.info('Sword Mask intersection will be performed')
                 self.polygon_mask = get_poly_sword_from_reach(self.df_reach_data, buffer_size=self.mask_buffer)
@@ -289,8 +296,7 @@ class Floodplain(object):
 
             water, min_range_ind_to_remove = pre_processing_pixc(pixc_reader,
                                                                  self.cross_track_min, self.threshold,
-                                                                 self.sig0_qual,
-                                                                 self.filtering_pekel_start, self.pekel_0_100_poly)
+                                                                 self.sig0_qual)
 
             label_tab, count, classification_tab, \
                     height_tab, sig0_tab, \
@@ -299,12 +305,12 @@ class Floodplain(object):
                                                                                         pixc_reader.range_size, pixc_reader.azimuth_size,
                                                                                         self.pekel_X_100_poly,
                                                                                         self.body_min_size, self.body_connectivity,
-                                                                                        plot='yes', outpath=self.output_path, cycle=cycle)
+                                                                                        plot=self.plot, outpath=self.output_path, cycle=cycle)
             logging.info(f'Number of water bodies: {count}')
 
             fpdem_land_pixel = pd.DataFrame()
             for label in range(1, count+1):
-                logging.info(f'\nWater body number {label} / {count}')
+                logging.info(f'Water body number {label} / {count}')
 
                 # Return water_extract (-> GeoDataFrame)
                 water_extract = compute_subwater_extract_from_label(water, label_tab, azimuth_index_tab, range_index_tab, label)
@@ -396,8 +402,6 @@ class Floodplain(object):
             # Remove borders points
             range_min = np.min(fpdem_land_pixel.range_index)
             range_max = np.max(fpdem_land_pixel.range_index)
-            # azimuth_min = np.min(fpdem_land_pixel.azimuth_index)
-            # azimuth_max = np.max(fpdem_land_pixel.azimuth_index)
             fpdem_land_pixel = remove_borders(fpdem_land_pixel.copy(), range_min, range_max - 1,
                                               pixc_reader.azimuth_min, pixc_reader.azimuth_max - 1,
                                               min_range_ind_to_remove)
@@ -413,7 +417,7 @@ class Floodplain(object):
 
             # Add flags columns + time and elevation
             fpdem_land_pixel[['classification_qual', 'geolocation_qual',
-                              'time', 'elevation']] = fpdem_land_pixel.apply(find_attributes, args=(water, 1), axis=1)
+                              'time', 'elevation']] = fpdem_land_pixel.apply(find_attributes, args=(water, 1,), axis=1)
 
             # Flag filtering
             fpdem_land_pixel = filter_data_based_on_quality_flag(fpdem_land_pixel, self.classif_qual,
