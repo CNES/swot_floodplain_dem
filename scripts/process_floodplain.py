@@ -102,6 +102,7 @@ class Floodplain(object):
 
             # Parallel run or not
             self.option = param.getValue("threading option")[0]
+            self.nb_cpu = int(param.getValue("number of cpu")[0])
 
             # Plot
             self.plot = param.getValue("plot").split(" ")[0]
@@ -248,7 +249,7 @@ class Floodplain(object):
         if self.option == "multiprocessing":
             # Create multiprocessing Pool
             logging.info("multiprocessing")
-            cpu_number = 12
+            cpu_number = self.nb_cpu
             logging.info("mp.cpu_count() = ", cpu_number)
             pool = mp.Pool(cpu_number)
 

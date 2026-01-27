@@ -1,29 +1,29 @@
 # Lat/lon extrema of the Area Of Interest
-latitude min = -15.41
-latitude max = -14.81
-longitude min = 22.6
-longitude max = 23.2
+latitude min = 47.9
+latitude max = 48.4
+longitude min = 3.8
+longitude max = 4.70
 
 #
 # PIXC / PIXCVec input info
 #
 # Path to PIXC list
-PIXC file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_Barotse/input/pixc/SWOT_L2_HR_PIXC_*.nc
+PIXC file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_Haditha/input/pixc/SWOT_L2_HR_PIXC_*.nc
 
 # Path to PIXCVec list
-PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_Barotse/input/pixcvec/SWOT_L2_HR_PIXCVec_*.nc
+PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_Haditha/input/pixcvec/SWOT_L2_HR_PIXCVec_*.nc
 
 
 #
 # Output info
 #
 # Output directory
-output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output_test
+output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Haditha/output_test
 
 # Output filename extensions
-tile name = 15S22E
-first date name = 20210111T184700
-last date name = 20241119T180313
+tile name = 47N3E
+first date name = 20230212T194612
+last date name = 20240507T192442
 
 
 # Select model approach : 
@@ -66,7 +66,6 @@ threading option = multiprocessing
 # Define the number of core processing units (Optional: if 'multiprocessing is chosen')
 number of cpu = 12
 
-
 # Plot
 plot = yes1 # Options: no, yes1 (only for Python script), yes2 (for notebook)
 
@@ -98,7 +97,7 @@ clustering water contour = concavehull # bathtub or concavehull
 # Pekel filtering :
 # At the beginning of the bathy extraction,
 # Filtering Dark water, all PIXC points within Pekel occurrences > {chosen value}% are kept
-pekel percent for Dark Water = 95
+pekel percent for Dark Water = 90
 # At the end of the bathy extraction,
 # Filter out all points within Pekel occurrences > {chosen value}% 
 pekel filtering end = yes # yes or no
@@ -121,7 +120,7 @@ number of neighbors = 5
 
 # Labeling water bodies :
 # Remove objects smaller than or equal to chosen size
-water body min size = 2000
+water body min size = 500
 # Connectivity defining the neighborhood of a pixel
 connectivity = 1
 
