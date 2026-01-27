@@ -8,7 +8,10 @@
 #SBATCH --export=none
 
 # Load the conda environment
-source /work/SWOT/swotdev/swotdev/stephag/env_FPDEM_eodag.sh
+module load conda
+conda activate /work/scratch/env/stephag/.conda/envs/FPDEM_eodag_env
+export PYTHONPATH=/work/SWOT/swotdev/swotdev/stephag/floodplain_dem/src/:$PYTHONPATH
+export PYTHONPATH=/work/SWOT/swotdev/swotdev/stephag/floodplain_dem/scripts/:$PYTHONPATH
 
 # Export certificate to access internet during the run (needed to load basemaps with cartopy)
 export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt

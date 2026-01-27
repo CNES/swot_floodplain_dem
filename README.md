@@ -76,8 +76,13 @@ Four files are present in each testcase directory:
 - The slurm file : fpdem.slurm
 - A notebook file : FPDEM_XXX_testcase.ipynb
 
+The first step after loading the conda environment is to export the PYTHONPATH for the scripts/ and src/ directories:
+```
+$ export PYTHONPATH=[your_path]/floodplain_dem/src/:$PYTHONPATH
+$ export PYTHONPATH=[your_path]/floodplain_dem/scripts/:$PYTHONPATH
+```
 
-To launch the FPDEM code with slurm use the following command:
+To launch the FPDEM code with slurm use the following command (the loading of the environment and the export mentionned above are performed within the fpdem.slurm so make sure to define the paths corectly):
 ```
 $ sbatch fpdem.slurm
 ```
