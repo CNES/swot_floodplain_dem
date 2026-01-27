@@ -12,6 +12,10 @@ Example of command to launch the code:
 
 For the code FPDEM, the PIXC files are stored in the directory: .[..]/Orient/input/pixc (The path should be defined in the FPDEM script parameters file SWOT_Param_L2_HR_FPDEM_Orient.rdf)
 
+Some cycles seem to be bad or will cause issues for the FPDEM bathymetry extraction:
+For tile 570_070L: 6, 19, 22, 27, 29
+For tile 264_069R: 16, 17, 18, 28, 29
+
 #
 # Parameters file
 

@@ -12,6 +12,9 @@ Example of command to launch the code:
 
 For the code FPDEM, the PIXC files are stored in the directory: .[..]/Lajeodo/input/pixc (The path should be defined in the FPDEM script parameters file SWOT_Param_L2_HR_FPDEM_Lajeodo.rdf)
 
+Some cycles seem to be bad or will cause issues for the FPDEM bathymetry extraction:
+For tile 214_207L: 12, 16, 18, 21, 28, 34
+
 #
 # Parameters file
 
