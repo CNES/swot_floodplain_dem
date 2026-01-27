@@ -81,8 +81,9 @@ The first step after loading the conda environment is to export the PYTHONPATH f
 $ export PYTHONPATH=[your_path]/floodplain_dem/src/:$PYTHONPATH
 $ export PYTHONPATH=[your_path]/floodplain_dem/scripts/:$PYTHONPATH
 ```
+If some certicates need to be exported to have basemaps with cartopy plots, they should be exported too. This also applies before starting the notebook.
 
-To launch the FPDEM code with slurm use the following command (the loading of the environment and the export mentionned above are performed within the fpdem.slurm so make sure to define the paths corectly):
+To launch the FPDEM code with slurm use the following command (the loading of the environment and the exports mentionned above are performed within the fpdem.slurm so make sure to define the paths corectly):
 ```
 $ sbatch fpdem.slurm
 ```
