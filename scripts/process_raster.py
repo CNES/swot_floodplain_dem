@@ -20,12 +20,13 @@ from rasterio.io import MemoryFile
 from scipy import interpolate
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
+import utm
 
 import my_rdf_file as my_rdf
 
 from names import FPDEM_BASENAME, FPDEM_RASTER_BASENAME, FPDEM_POINTCLOUD_BASENAME, MASK_SUFFIX, compute_name
 
-from process import filter_elevation,compute_mean_3sigma
+from process import filter_elevation, compute_mean_3sigma
 
 from nc import write_raster_gridded
 
@@ -74,7 +75,7 @@ class FPDEM_Raster(object):
             self.mode = param.getValue("mode").split(" ")[0]
             self.plot = param.getValue("plot").split(" ")[0]
 
-        self.espg = 4326
+        self.epsg = 4326
 
     def load_input_fpdem_raster(self):
         """
@@ -103,6 +104,12 @@ class FPDEM_Raster(object):
             lonlat_data = np.ndarray((nb, 3))
             lonlat_data[:, 0] = self.cloud_df_raster['longitude']
             lonlat_data[:, 1] = self.cloud_df_raster['latitude']
+
+        mean_lat = np.mean(self.cloud_df_raster['latitude'])
+        mean_lon = np.mean(self.cloud_df_raster['longitude'])
+        utm_coords = utm.from_latlon(mean_lon, mean_lat)
+        self.zone_number = utm_coords[2]
+        self.zone_letter = utm_coords[3]
 
         elevation = self.cloud_df_raster['elevation']
         if self.mode == 'latlon':
@@ -239,7 +246,7 @@ class FPDEM_Raster(object):
         mask = shapefile.Reader(self.mask)
 
         # Define the projection according to provided EPSG
-        proj = pyproj.Proj(init='EPSG:' + str(self.espg))
+        proj = pyproj.Proj(init='EPSG:' + str(self.epsg))
 
         # Compute quality flag
         qual_flag_2d = compute_qual_flag(dist_mean_2d, z_rel_2d)
@@ -257,35 +264,35 @@ class FPDEM_Raster(object):
         if self.mode == 'utm':
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=z2d.shape[0], width=z2d.shape[1], count=1, dtype=z2d.dtype,
-                                  crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(z2d, 1)
                     out_image, out_transform = rasterio.mask.mask(src, extracted_area_utm, crop=False,
                                                                   indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=dist_min_2d.shape[0], width=dist_min_2d.shape[1], count=1,
-                                  dtype=dist_min_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=dist_min_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(dist_min_2d, 1)
                     out_dist_min_2d, out_transform = rasterio.mask.mask(src, extracted_area_utm, crop=False,
                                                                         indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=dist_mean_2d.shape[0], width=dist_mean_2d.shape[1], count=1,
-                                  dtype=dist_mean_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=dist_mean_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(dist_mean_2d, 1)
                     out_dist_mean_2d, out_transform = rasterio.mask.mask(src, extracted_area_utm, crop=False,
                                                                          indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=z_rel_2d.shape[0], width=z_rel_2d.shape[1], count=1,
-                                  dtype=z_rel_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=z_rel_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(z_rel_2d, 1)
                     out_z_rel_2d, out_transform = rasterio.mask.mask(src, extracted_area_utm, crop=False,
                                                                      indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=qual_flag_2d.shape[0], width=qual_flag_2d.shape[1], count=1,
-                                  dtype=qual_flag_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=qual_flag_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(qual_flag_2d, 1)
                     out_qual_flag_2d, out_transform = rasterio.mask.mask(src, extracted_area_utm, crop=False, indexes=1,
                                                                          nodata=np.nan)
@@ -293,35 +300,35 @@ class FPDEM_Raster(object):
         elif self.mode == 'latlon':
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=z2d.shape[0], width=z2d.shape[1], count=1, dtype=z2d.dtype,
-                                  crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(z2d, 1)
                     out_image, out_transform = rasterio.mask.mask(src, extracted_area_latlon, crop=False,
                                                                   indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=dist_min_2d.shape[0], width=dist_min_2d.shape[1], count=1,
-                                  dtype=dist_min_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=dist_min_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(dist_min_2d, 1)
                     out_dist_min_2d, out_transform = rasterio.mask.mask(src, extracted_area_latlon, crop=False,
                                                                         indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=dist_mean_2d.shape[0], width=dist_mean_2d.shape[1], count=1,
-                                  dtype=dist_mean_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=dist_mean_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(dist_mean_2d, 1)
                     out_dist_mean_2d, out_transform = rasterio.mask.mask(src, extracted_area_latlon, crop=False,
                                                                          indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=z_rel_2d.shape[0], width=z_rel_2d.shape[1], count=1,
-                                  dtype=z_rel_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=z_rel_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(z_rel_2d, 1)
                     out_z_rel_2d, out_transform = rasterio.mask.mask(src, extracted_area_latlon, crop=False,
                                                                      indexes=1, nodata=np.nan)
 
             with MemoryFile() as memfile:
                 with memfile.open(driver='GTiff', height=qual_flag_2d.shape[0], width=qual_flag_2d.shape[1], count=1,
-                                  dtype=qual_flag_2d.dtype, crs='EPSG:' + str(self.espg), transform=transform) as src:
+                                  dtype=qual_flag_2d.dtype, crs='EPSG:' + str(self.epsg), transform=transform) as src:
                     src.write(qual_flag_2d, 1)
                     out_qual_flag_2d, out_transform = rasterio.mask.mask(src, extracted_area_latlon, crop=False,
                                                                          indexes=1, nodata=np.nan)
@@ -369,7 +376,8 @@ class FPDEM_Raster(object):
         """
         write_raster_gridded(self.output_file, self.mode, self.x, self.y, self.out_image,
                              self.out_dist_min_2d, self.out_dist_mean_2d, self.out_qual_flag_2d,
-                             self.resolution, str(self.espg))
+                             self.resolution, str(self.epsg),
+                             zone_number=int(self.zone_number), zone_letter=str(self.zone_letter))
 
 
 def compute_qual_flag(mean_dist, mean_z_rel):

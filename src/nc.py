@@ -16,6 +16,7 @@ import math
 import textwrap
 import numpy as np
 from netCDF4 import Dataset
+from pyproj import CRS
 try:
     from osgeo import osr
 except ImportError:
@@ -166,14 +167,14 @@ def write_raster_ungridded(data, filename):
     ds.references = "None"
     ds.reference_document = "None"
     ds.contact = "damien.desroches@cnes.fr"
-    ds.coordinate_reference_system = data.attrs['espg']
+    ds.coordinate_reference_system = data.attrs['epsg']
     ds.short_name = "L2_HR_FPDEM_Ungridded"
     ds.descriptor_string = filename.split('_')[5]
     ds.crid = "Dx0000"
     ds.product_version = "1"
     ds.pge_name = "Pge_v0"
     ds.pge_version = "1"
-    ds.espg = data.attrs["espg"]
+    ds.epsg = data.attrs["epsg"]
     ds.time_coverage_start = filename.split('_')[6]
     ds.time_coverage_end = filename.split('_')[7]
     ds.geospatial_lon_min = np.min(data.variables["longitude"])
@@ -242,10 +243,12 @@ def write_raster_ungridded(data, filename):
 def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
                          out_image: np.array, out_dist_min_2d: np.array,
                          out_dist_mean_2d: np.array, qual_flag: np.array,
-                         resolution: float, espg: str):
+                         resolution: float, epsg: str,
+                         zone_number=1, zone_letter='N'):
     """
     Write output raster netcdf file
 
+    :param zone_letter:
     :param filename: Name of the raster file
     :param mode: latlon or utm
     :param x: Array of x (longitude)
@@ -254,115 +257,179 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
     :param out_dist_min_2d: Minimum of the distance between neighbors
     :param out_dist_mean_2d: Mean distance between neighbors
     :param qual_flag: Array of raster pixels' quality flag
-    :param resolution: Resolution in degrees for latlon or meters for utm
-    :param espg: EPSG of the raster
+    :param epsg: String with the EPSG number
     """
 
     logging.info('Writing FPDEM raster file')
 
-    ds = Dataset(filename, 'w')
-    ds.Conventions = "CF-1.7"
-    ds.title = "Level 2 KaRIn High Rate FPDEM Gridded Data Product"
-    ds.institution = "CNES"
-    ds.source = "Large scale Simulator"
-    ds.history = "None"
-    ds.platform ="SWOT"
-    ds.references = "None"
-    ds.reference_document = "None"
-    ds.contact = "damien.desroches@cnes.fr"
-    ds.coordinate_reference_system = espg
-    ds.sampling = resolution
-    ds.short_name = "L2_HR_FPDEM_Gridded"
-    ds.descriptor_string = filename.split('_')[5]
-    ds.crid = "Dx0000"
-    ds.product_version = "1"
-    ds.pge_name = "Pge_v0"
-    ds.pge_version = "1"
-    ds.time_coverage_start = filename.split('_')[6]
-    ds.time_coverage_end = filename.split('_')[7]
-    ds.geospatial_lon_min = np.min(y)
-    ds.geospatial_lon_max = np.max(y)
-    ds.geospatial_lat_min = np.min(x)
-    ds.geospatial_lat_max = np.max(x)
-
+    # Define the dataset
     if mode == 'latlon':
-        x_dim = ds.createDimension('latitude', len(y))
-        y_dim = ds.createDimension('longitude', len(x))
 
-        coordinate_system = osr.SpatialReference()
-        coordinate_system.ImportFromEPSG(4326)
+        ds = xr.Dataset(
+            {
+                "elevation": (("latitude", "longitude"), out_image),
+                "distance_to_closest": (("latitude", "longitude"), out_dist_min_2d),
+                "mean_distance": (("latitude", "longitude"), out_dist_mean_2d),
+                "fpdem_gridded_qual": (("latitude", "longitude"), qual_flag),
+            },
+            coords={
+                "latitude": (("latitude"), y),
+                "longitude": (("longitude"), x),
+            },
+        )
 
-        crs = ds.createVariable("crs", 'S1')
-        crs.long_name = 'CRS Definition'
-        crs.grid_mapping_name = 'latitude_longitude'
-        crs.geographic_crs_name = 'WGS 84'
-        crs.reference_ellipsoid_name = 'WGS 84'
-        crs.horizontal_datum_name = 'WGS_1984'
-        crs.prime_meridian_name = 'Greenwich'
-        crs.longitude_of_prime_meridian = 0.
-        crs.semi_major_axis = 6378137.
-        crs.inverse_flattening = 298.257223563
-        crs.crs_wkt = coordinate_system.ExportToWkt()
-        crs.spatial_ref = coordinate_system.ExportToWkt()
-        crs.comment = 'Geodetic lat/lon coordinate reference system.'
+        # Coordinates
+        ds = ds.assign_coords(
+            latitude=ds.latitude.assign_attrs(
+                standard_name="latitude",
+                long_name="latitude coordinate (positive N, negative S)",
+                units="degrees_north",
+                valid_min=-80,
+                valid_max=80,
+            ),
+            longitude=ds.longitude.assign_attrs(
+                standard_name="longitude",
+                long_name="longitude coordinate (degrees East)",
+                units="degrees_east",
+                valid_min=-180,
+                valid_max=180,
+            ),
+        )
 
-        x_var = ds.createVariable("latitude", "float64", ("latitude"), fill_value=9.969209968386869e+36)
-        x_var.long_name = 'latitude (positive N, negative S)'
-        x_var.standard_name = 'latitude'
-        x_var.units = 'degrees_north'
-        x_var.valid_min = -80
-        x_var.valid_max = 80
-        x_var.comment = textjoin("""
-                Latitude [-80,80] (degrees north of equator) of
-                the pixel.""")
+        # Define CRS
+        ds["crs"] = xr.DataArray(
+            0,
+            attrs={
+                "grid_mapping_name": "latitude_longitude",
+                "longitude_of_prime_meridian": 0.0,
+                "semi_major_axis": 6378137.0,
+                "inverse_flattening": 298.257223563,
+                "spatial_ref": (
+                    'GEOGCS["WGS 84",'
+                    'DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],'
+                    'PRIMEM["Greenwich",0],'
+                    'UNIT["degree",0.0174532925199433]]'
+                ),
+                "crs_wkt": CRS.from_epsg(epsg).to_wkt(),
+                "epsg_code": f"EPSG:{epsg}",
+            },
+        )
 
-        y_var = ds.createVariable("longitude", "float64", ("longitude"), fill_value=9.969209968386869e+36)
-        y_var.long_name = 'longitude (degrees East)'
-        y_var.standard_name = 'longitude'
-        y_var.units = 'degrees_east'
-        y_var.valid_min = -180
-        y_var.valid_max = 180
-        y_var.comment = textjoin("""
-                Longitude [-180,180] (east of the Greenwich meridian) of
-                the pixel.""")
+    elif mode == 'utm':
 
-        z_var = ds.createVariable("elevation", "float32", ("latitude", "longitude"), fill_value=9.96921e+36)
-        z_var.long_name = 'surface elevation above geoid'
-        z_var.grid_mapping = 'crs'
-        z_var.units = 'meters'
-        z_var.valid_min = -9999
-        z_var.valid_max = 9999
-        z_var.comment = textjoin("""Surface elevation of the pixel above the geoid and after using models to subtract the effects of tides (solid_earth_tide, load_tide_fes, pole_tide).""")
+        hemisphere = "N" if zone_letter.upper() >= "N" else "S" # N to X -> North ; C to M -> South
+        false_northing = 0.0 if hemisphere == "N" else 10_000_000.
+        lon0 = (zone_number - 1) * 6 - 180 + 3
+        epsg = (32600 if hemisphere.upper() == "N" else 32700) + zone_number
 
-        min_dist_var = ds.createVariable("distance_to_closest", "float64", ("latitude", "longitude"), fill_value=9.96921e+36)
-        min_dist_var.long_name = 'distance to closest boundary pixel'
-        min_dist_var.grid_mapping = 'crs'
-        min_dist_var.units = 'meters'
-        min_dist_var.valid_min = 0
-        min_dist_var.valid_max = 999999
-        min_dist_var.comment = textjoin("""Distance to closest boundary pixel""")
+        ds = xr.Dataset(
+            {
+                "elevation": (("x_utm", "y_utm"), out_image),
+                "distance_to_closest": (("x_utm", "y_utm"), out_dist_min_2d),
+                "mean_distance": (("x_utm", "y_utm"), out_dist_mean_2d),
+                "fpdem_gridded_qual": (("x_utm", "y_utm"), qual_flag),
+            },
+            coords={
+                "x_utm": (("x_utm"), x),
+                "y_utm": (("y_utm"), y),
+            },
+        )
 
-        mean_dist_var = ds.createVariable("mean_distance", "float64", ("latitude", "longitude"), fill_value=9.96921e+36)
-        mean_dist_var.long_name = 'mean distance to selected boundaries pixels'
-        mean_dist_var.grid_mapping = 'crs'
-        mean_dist_var.units = 'meters'
-        mean_dist_var.valid_min = 0
-        mean_dist_var.valid_max = 999999
-        mean_dist_var.comment = textjoin("""Mean distance to selected boundaries pixels""")
+        # Coordinates
+        ds = ds.assign_coords(
+            x_utm=ds.x_utm.assign_attrs(
+                standard_name="x_utm",
+                long_name="x coordinate",
+                units="m",
+            ),
+            y_utm=ds.y_utm.assign_attrs(
+                standard_name="y_utm",
+                long_name="y coordinate",
+                units="m",
+            ),
+        )
 
-        qual_var = ds.createVariable("fpdem_gridded_qual", "u1", ("latitude", "longitude"), fill_value=255)
-        qual_var.long_name = 'DEM quality flag'
-        qual_var.grid_mapping = 'crs'
-        qual_var.flag_meanings = 'good bad'
-        qual_var.flag_values = '1 2 3 4'
-        qual_var.units = 'None'
-        qual_var.valid_min = 1
-        qual_var.valid_max = 4
-        qual_var.comment = textjoin("""Gridded floodplain DEM quality flag""")
+        # Define CRS
+        ds["crs"] = xr.DataArray(
+            0,
+            attrs={
+                "grid_mapping_name": "transverse_mercator",
+                "scale_factor_at_central_meridian": 0.9996,
+                "longitude_of_central_meridian": lon0,
+                "latitude_of_projection_origin": 0.0,
+                "false_easting": 500_000.0,
+                "false_northing": false_northing,
+                "semi_major_axis": 6378137.0,
+                "inverse_flattening": 298.257223563,
+                "longitude_of_prime_meridian": 0.0,
+                "spatial_ref": f"EPSG:{epsg}",
+                "crs_wkt": CRS.from_epsg(epsg).to_wkt(),
+                "epsg_code": f"EPSG:{epsg}",
+            },
+        )
 
-    x_var[:] = y
-    y_var[:] = x
-    z_var[:, :] = out_image
-    min_dist_var[:, :] = out_dist_min_2d
-    mean_dist_var[:, :] = out_dist_mean_2d
-    qual_var[:, :] = qual_flag
+    # Add global attributes
+    ds.attrs.update({
+        "Conventions": "CF-1.7",
+        "title": "Level 2 KaRIn High Rate FPDEM Gridded Data Product",
+        "institution": "CNES",
+        "source": "Large scale Simulator",
+        "platform": "SWOT",
+        "instrument": "Capteur ou instrument utilisé? (si applicable).",
+        "history": "None",
+        "references": "None",
+        "reference_document": "None",
+        "contact": "damien.desroches@cnes.fr",
+        "coordinate_reference_system": f"{epsg}",
+        "sampling": resolution,
+        "short_name": "L2_HR_FPDEM_Gridded",
+        "descriptor_string": filename.split('_')[5],
+        "crid": "Dx0000",
+        "product_version": "1",
+        "pge_name": "Pge_v0",
+        "pge_version": "1",
+
+        "time_coverage_start": filename.split('_')[6],
+        "time_coverage_end": filename.split('_')[7],
+
+        "geospatial_lat_min": np.min(x),
+        "geospatial_lat_max": np.max(x),
+        "geospatial_lon_min": np.min(y),
+        "geospatial_lon_max": np.max(y),
+    })
+
+    # Add necessary attributes
+    ds["mean_distance"] = ds["mean_distance"].assign_attrs(
+        grid_mapping="crs",
+        long_name="mean distance to selected boundaries pixels",
+        units="m",
+        valid_min=0,
+        valid_max=999999,
+    )
+
+    ds["distance_to_closest"] = ds["distance_to_closest"].assign_attrs(
+        grid_mapping="crs",
+        long_name="distance to closest boundary pixel",
+        units="m",
+        valid_min=0,
+        valid_max=999999,
+    )
+
+    ds["elevation"] = ds["elevation"].assign_attrs(
+        grid_mapping="crs",
+        long_name="surface elevation above geoid",
+        units="m",
+        valid_min=-9999,
+        valid_max=9999,
+    )
+
+    ds["fpdem_gridded_qual"] = ds["fpdem_gridded_qual"].assign_attrs(
+        grid_mapping="crs",
+        long_name="DEM quality flag",
+        units='None',
+        valid_min=0,
+        valid_max=4,
+    )
+
+    # Write the netcdf file
+    ds.to_netcdf(filename)

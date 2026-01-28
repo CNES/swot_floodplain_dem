@@ -510,9 +510,9 @@ class Floodplain(object):
                 zone_number = utm.latlon_to_zone_number(res_pointcloud.iloc[0]['latitude'],
                                                         res_pointcloud.iloc[0]['longitude'])
                 if np.mean(res_pointcloud.iloc[0]['latitude']) >= 0:
-                    res_pointcloud_ds.attrs['espg'] = int(32600 + zone_number)
+                    res_pointcloud_ds.attrs['epsg'] = int(32600 + zone_number)
                 else:
-                    res_pointcloud_ds.attrs['espg'] = int(32700 + zone_number)
+                    res_pointcloud_ds.attrs['epsg'] = int(32700 + zone_number)
 
                 list_pixc = []
                 list_pixcvec = []
@@ -526,7 +526,6 @@ class Floodplain(object):
 
                 output_fpdem_pointcloud_name = compute_name(self.output_path, FPDEM_POINTCLOUD_BASENAME, self.tile_name,
                                                             self.first_date_name, self.last_date_name)
-                print('output_fpdem_pointcloud_name', output_fpdem_pointcloud_name)
 
                 write_raster_ungridded(res_pointcloud_ds, output_fpdem_pointcloud_name)
 

@@ -18,7 +18,7 @@ PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_B
 # Output info
 #
 # Output directory
-output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output_test
+output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output_test2
 
 # Output filename extensions
 tile name = 15S22E
@@ -81,7 +81,7 @@ area threshold = 100000.
 
 
 #
-# Clustering method params : performed on WATER_LAND labels
+# Clustering method params : performed on WATER_LAND labels (optional if select_approach=bathtub)
 #
 clustering outlier filter method = isolation_forest # zscore or isolation_forest
 clustering method = kmeans # kmeans, birch, hdbscan_tsne or hdbscan_umap are possible choices
@@ -136,7 +136,7 @@ concave hull ratio = 0.005
 # Raster
 #
 # Choose between 'latlon' or 'utm' for the definition of the raster grid
-mode = latlon
+mode = utm
 # The resolution is in degrees for latlon mode and meters for utm mode
 resolution = 0.000277777
 

@@ -80,7 +80,7 @@ area threshold = 100000.
 
 
 #
-# Clustering method params : performed on WATER_LAND labels
+# Clustering method params : performed on WATER_LAND labels (optional if select_approach=bathtub)
 #
 clustering outlier filter method = isolation_forest # zscore or isolation_forest
 clustering method = kmeans # kmeans, birch, hdbscan_tsne or hdbscan_umap are possible choices
