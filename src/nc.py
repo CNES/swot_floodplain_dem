@@ -7,6 +7,7 @@ Pixel cloud reader using geopandas
 Copyright (c) 2018 CNES. All rights reserved.
 """
 
+import os
 import logging
 import pandas as pd
 import geopandas as gpd
@@ -157,88 +158,124 @@ def write_raster_ungridded(data, filename):
 
     logging.info('Writing FPDEM pointcloud file')
 
-    ds = Dataset(filename, 'w')
-    ds.Conventions = "CF-1.7"
-    ds.title = "Level 2 KaRIn High Rate FPDEM Ungridded Data Product"
-    ds.institution = "CNES"
-    ds.source = "Large scale Simulator"
-    ds.history = "None"
-    ds.mission_name = "SWOT"
-    ds.references = "None"
-    ds.reference_document = "None"
-    ds.contact = "damien.desroches@cnes.fr"
-    ds.coordinate_reference_system = data.attrs['epsg']
-    ds.short_name = "L2_HR_FPDEM_Ungridded"
-    ds.descriptor_string = filename.split('_')[5]
-    ds.crid = "Dx0000"
-    ds.product_version = "1"
-    ds.pge_name = "Pge_v0"
-    ds.pge_version = "1"
-    ds.epsg = data.attrs["epsg"]
-    ds.time_coverage_start = filename.split('_')[6]
-    ds.time_coverage_end = filename.split('_')[7]
-    ds.geospatial_lon_min = np.min(data.variables["longitude"])
-    ds.geospatial_lon_max = np.max(data.variables["longitude"])
-    ds.geospatial_lat_min = np.min(data.variables["latitude"])
-    ds.geospatial_lat_max = np.max(data.variables["latitude"])
+    epsg = data.attrs['epsg']
 
-    ds.xref_input_l2_hr_pixc_files = data.attrs["xref_input_l2_hr_pixc_files"]
-    try:
-        ds.xref_input_l2_hr_pixcvec_files = data.attrs["xref_input_l2_hr_pixcvec_files"]
-    except:
-        pass
+    ds = xr.Dataset(
+        data_vars={
+            "latitude": (("index",), data.variables['latitude'].values),
+            "longitude": (("index",), data.variables['longitude'].values),
+            "elevation": (("index",), data.variables['elevation'].values),
+            "time": (("index",), data.variables['time'].values),
+            "x": (("index",), data.variables['x'].values),
+            "y": (("index",), data.variables['y'].values),
+            "fpdem_ungridded_qual": (("index",), data.variables['fpdem_ungridded_qual'].values),
+        },
+        coords={"index": ("index", np.arange(len(data.variables['latitude'].values))), }
+    )
 
-    index_dim = ds.createDimension('index', len(data.variables['longitude']))
+    # Assign astype
+    ds = ds.astype({
+        "latitude": "float64",
+        "longitude": "float64",
+        "elevation": "float32",
+        "time": "float64",
+        "x": "float64",
+        "y": "float64",
+        "fpdem_ungridded_qual": "int32",
+    })
 
-    coordinate_system = osr.SpatialReference()
-    coordinate_system.ImportFromEPSG(4326)
+    # Define CRS
+    ds["crs"] = xr.DataArray(
+        0,
+        attrs={
+            "grid_mapping_name": "latitude_longitude",
+            "longitude_of_prime_meridian": 0.0,
+            "semi_major_axis": 6378137.0,
+            "inverse_flattening": 298.257223563,
+            "spatial_ref": (
+                'GEOGCS["WGS 84",'
+                'DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],'
+                'PRIMEM["Greenwich",0],'
+                'UNIT["degree",0.0174532925199433]]'
+            ),
+            "crs_wkt": CRS.from_epsg(epsg).to_wkt(),
+            "epsg_code": f"EPSG:{epsg}",
+        },
+    )
 
-    x_var = ds.createVariable("latitude", "float64", ("index"), fill_value=-9999.)
-    x_var.long_name = 'latitude (positive N, negative S)'
-    x_var.standard_name = 'latitude'
-    x_var.units = 'degrees_north'
-    x_var.valid_min = -80
-    x_var.valid_max = 80
-    x_var.comment = textjoin("""Latitude [-80,80] (degrees north of equator) of the pixel.""")
+    # Add global attributes
+    ds.attrs.update({
+        "Conventions": "CF-1.7",
+        "title": "Level 2 KaRIn High Rate FPDEM Ungridded Data Product",
+        "institution": "CNES",
+        "source": "Large scale Simulator",
+        "platform": "SWOT",
+        "history": "None",
+        "references": "None",
+        "reference_document": "None",
+        "contact": "damien.desroches@cnes.fr",
+        "coordinate_reference_system": f"{epsg}",
+        "short_name": "L2_HR_FPDEM_Ungridded",
+        "descriptor_string": file.split('_')[5],
+        "crid": "Dx0000",
+        "product_version": "1",
+        "pge_name": "Pge_v0",
+        "pge_version": "1",
 
-    y_var = ds.createVariable("longitude", "float64", ("index"), fill_value=-9999.)
-    y_var.long_name = 'longitude (degrees East)'
-    y_var.standard_name = 'longitude'
-    y_var.units = 'degrees_east'
-    y_var.valid_min = -180
-    y_var.valid_max = 180
-    y_var.comment = textjoin("""Longitude [-180,180) (east of the Greenwich meridian) of the pixel.""")
+        "time_coverage_start": file.split('_')[6],
+        "time_coverage_end": file.split('_')[7],
 
-    z_var = ds.createVariable("elevation", "float32", ("index"), fill_value=9.96921e+36)
-    z_var.long_name = 'surface elevation above geoid'
-    z_var.grid_mapping = 'crs'
-    z_var.units = 'meters'
-    z_var.valid_min = -1500
-    z_var.valid_max = 15000
-    z_var.comment = textjoin("""Surface elevation of the pixel above the geoid and after using models to subtract the effects of tides (solid_earth_tide, load_tide_fes, pole_tide).""")
+        "geospatial_lat_min": np.min(data.variables["latitude"].values),
+        "geospatial_lat_max": np.max(data.variables["latitude"].values),
+        "geospatial_lon_min": np.min(data.variables["longitude"].values),
+        "geospatial_lon_max": np.max(data.variables["longitude"].values),
+    })
 
-    fpdem_ungridded_qual_var = ds.createVariable("fpdem_ungridded_qual", "u1", ("index"), fill_value=255)
-    fpdem_ungridded_qual_var.long_name = 'ungridded floodplain DEM quality flag  '
-    fpdem_ungridded_qual_var.flag_meanings = 'good suspect bad'
-    fpdem_ungridded_qual_var.flag_values = '0 1 2'
-    fpdem_ungridded_qual_var.units = ''
-    fpdem_ungridded_qual_var.valid_min = 0
-    fpdem_ungridded_qual_var.valid_max = 2
-    fpdem_ungridded_qual_var.comment = textjoin("""Ungridded floodplain DEM quality flag computed as the maximum of the three quality flags of the pixel in the corresponding L2_HR_PIXC product.""")
+    # Add necessary attributes
+    ds["elevation"] = ds["elevation"].assign_attrs(
+        grid_mapping="crs",
+        long_name="surface elevation above geoid",
+        units="m",
+        valid_min=-1500,
+        valid_max=15000,
+    )
 
-    time_var = ds.createVariable("time", "int", ("index"), fill_value=2147483647)
-    time_var.long_name = 'measurement time in hours (UTC)'
-    time_var.standard_name = 'time'
-    time_var.units = ''
-    time_var.valid_min = 175320
-    time_var.valid_max = 438300
-    time_var.comment = textjoin("""Time of measurement in hours in the UTC time scale since 1 Jan 2000 00:00:00 UTC, obtained by dividing the illumination_time (in seconds) of the pixel in the L2_HR_PIXC product by 3600, and rounding it to entire hours""")
+    ds["time"] = ds["time"].assign_attrs(
+        grid_mapping="crs",
+        long_name="Measurement time in hours (UTC) -- Time of measurement in hours in the UTC time scale since 1 Jan 2000 00:00:00 UTC, obtained by dividing the illumination_time (in seconds) of the pixel in the L2_HR_PIXC product by 3600, and rounding it to entire hours",
+        units="h",
+        valid_min=175320,
+        valid_max=438300,
+    )
 
-    x_var[:] = data.variables['latitude']
-    y_var[:] = data.variables['longitude']
-    z_var[:] = data.variables['elevation']
-    fpdem_ungridded_qual_var[:] = data.variables["fpdem_ungridded_qual"]
-    time_var[:] = data.variables["time"]
+    ds["x"] = ds["x"].assign_attrs(
+        grid_mapping="crs",
+        long_name="x coordinates (UTM)",
+        units="m",
+        valid_min=166021,
+        valid_max=441868,
+    )
+
+    ds["y"] = ds["y"].assign_attrs(
+        grid_mapping="crs",
+        long_name="y coordinates (UTM)",
+        units="m",
+        valid_min=1116915,
+        valid_max=8883085,
+    )
+
+    ds["fpdem_ungridded_qual"] = ds["fpdem_ungridded_qual"].assign_attrs(
+        grid_mapping="crs",
+        long_name="ungridded floodplain DEM quality flag",
+        units="",
+        flag_meanings='good suspect bad',
+        flag_values='0 1 2',
+        valid_min=0,
+        valid_max=2,
+    )
+
+    # Write the netcdf file
+    ds.to_netcdf(filename)
 
 def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
                          out_image: np.array, out_dist_min_2d: np.array,
@@ -324,10 +361,10 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
 
         ds = xr.Dataset(
             {
-                "elevation": (("x_utm", "y_utm"), out_image),
-                "distance_to_closest": (("x_utm", "y_utm"), out_dist_min_2d),
-                "mean_distance": (("x_utm", "y_utm"), out_dist_mean_2d),
-                "fpdem_gridded_qual": (("x_utm", "y_utm"), qual_flag),
+                "elevation": (("y_utm", "x_utm"), out_image),
+                "distance_to_closest": (("y_utm", "x_utm"), out_dist_min_2d),
+                "mean_distance": (("y_utm", "x_utm"), out_dist_mean_2d),
+                "fpdem_gridded_qual": (("y_utm", "x_utm"), qual_flag),
             },
             coords={
                 "x_utm": (("x_utm"), x),
@@ -368,6 +405,7 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
             },
         )
 
+    file = os.path.basename(filename)
     # Add global attributes
     ds.attrs.update({
         "Conventions": "CF-1.7",
@@ -375,7 +413,6 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
         "institution": "CNES",
         "source": "Large scale Simulator",
         "platform": "SWOT",
-        "instrument": "Capteur ou instrument utilisé? (si applicable).",
         "history": "None",
         "references": "None",
         "reference_document": "None",
@@ -383,14 +420,14 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
         "coordinate_reference_system": f"{epsg}",
         "sampling": resolution,
         "short_name": "L2_HR_FPDEM_Gridded",
-        "descriptor_string": filename.split('_')[5],
+        "descriptor_string": file.split('_')[5],
         "crid": "Dx0000",
         "product_version": "1",
         "pge_name": "Pge_v0",
         "pge_version": "1",
 
-        "time_coverage_start": filename.split('_')[6],
-        "time_coverage_end": filename.split('_')[7],
+        "time_coverage_start": file.split('_')[6],
+        "time_coverage_end": file.split('_')[7],
 
         "geospatial_lat_min": np.min(x),
         "geospatial_lat_max": np.max(x),
@@ -427,6 +464,7 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
         grid_mapping="crs",
         long_name="DEM quality flag",
         units='None',
+        flag_values='0 1 2 4',
         valid_min=0,
         valid_max=4,
     )

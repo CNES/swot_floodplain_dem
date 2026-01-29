@@ -110,6 +110,7 @@ class FPDEM_Raster(object):
         utm_coords = utm.from_latlon(mean_lon, mean_lat)
         self.zone_number = utm_coords[2]
         self.zone_letter = utm_coords[3]
+        print('zone nb and letter:', self.zone_number, self.zone_letter)
 
         elevation = self.cloud_df_raster['elevation']
         if self.mode == 'latlon':
