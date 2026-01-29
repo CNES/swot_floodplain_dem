@@ -1,7 +1,6 @@
 """
 Download SWOT products (mainly PIXC and/or PIXCVec)
 using providers swot and/or hydroweb_next
-Can convert the downloaded netcdf into a shapefile if the routine name performing the transformation is provided
 
 !!! This script works only on the CNES server Trex at the moment !!!
 
