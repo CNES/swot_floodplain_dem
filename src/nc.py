@@ -203,6 +203,7 @@ def write_raster_ungridded(data, filename):
         },
     )
 
+    file = os.path.basename(filename)
     # Add global attributes
     ds.attrs.update({
         "Conventions": "CF-1.7",
