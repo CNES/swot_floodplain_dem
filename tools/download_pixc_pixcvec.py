@@ -36,9 +36,6 @@ providers = ['swot', 'hydroweb_next']
 product = ["SWOT_L2_HR_PIXC", "SWOT_L2_HR_PIXCVec"] # SWOT_L2_HR_PIXCVec with provider Swot; SWOT_L2_HR_PIXCVEC with provider hydroweb_next
 crid = [] #['PIC0'] #, 'PGC0']
 
-flag_convert2shp = 0 # 0: no; 1: yes
-file2convert = '/work/EXPERT_CENTER/mwec/workspace/HR/run_lake_processing/swot-calval-tools/lib/pixc_to_shp_2.py'
-
 ########################################################################################################################
 
 try:
@@ -77,11 +74,6 @@ try:
     parser.add_argument("-et", "--endtime",
                         type=str,
                         help="Select the period of time : end time (ex: 2023-01-01T00:00:00)")
-    parser.add_argument("-conv", "--convert",
-                        #action="store_true",
-                        type=int,
-                        default=0,
-                        help="Convert netcdf into shapefile -- 0: no; 1: yes -- Default = 0")
     args = parser.parse_args()
 
 except getopt.error as err:
@@ -121,9 +113,6 @@ if args.crid:
     crid = args.crid
 else:
     crid = []
-
-if args.convert:
-    flag_convert2shp = args.convert
 
 if args.provider:
     providers = args.providers
@@ -373,12 +362,3 @@ if input(f"Do you want to continue and download all {len(search_results)} produc
         listfiles = os.listdir(f'{outputpath}')
         nc_file = [listfiles[i] for i in range(len(listfiles)) if listfiles[i][-3:] == '.nc'][0]
         os.system(f'mv {outputpath}/{nc_file} {products_path}/')
-
-        # Convert netdcf into shapefile (for Qgis reading for example)
-        if flag_convert2shp == 1 and e_prod == 'SWOT_L2_HR_PIXC':
-            try:
-                out_shp_file = nc_file.replace('.nc', '.shp')
-                print(f'Converting {nc_file} into shapefile')
-                os.system(f'python {file2convert} {products_path}/{nc_file} --output_shp {products_path}/{out_shp_file}')
-            except:
-                print("Could not convert the netcdf into a shapefile")
