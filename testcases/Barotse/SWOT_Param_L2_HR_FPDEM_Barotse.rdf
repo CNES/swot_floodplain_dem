@@ -136,7 +136,7 @@ concave hull ratio = 0.005
 # Raster
 #
 # Choose between 'latlon' or 'utm' for the definition of the raster grid
-mode = utm
+mode = latlon
 # The resolution is in degrees for latlon mode and meters for utm mode
 resolution = 0.000277777
 
