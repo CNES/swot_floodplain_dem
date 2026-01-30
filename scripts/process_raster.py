@@ -89,8 +89,7 @@ class FPDEM_Raster(object):
 
     def compute_raster_exotic(self):
         """
-
-        :return:
+        Compute all variables for the raster file and plot them in a png figure.
         """
         # Extract xyz
         if self.mode == 'utm':
@@ -107,7 +106,7 @@ class FPDEM_Raster(object):
 
         mean_lat = np.mean(self.cloud_df_raster['latitude'])
         mean_lon = np.mean(self.cloud_df_raster['longitude'])
-        utm_coords = utm.from_latlon(mean_lon, mean_lat)
+        utm_coords = utm.from_latlon(mean_lat, mean_lon)
         self.zone_number = utm_coords[2]
         self.zone_letter = utm_coords[3]
         print('zone nb and letter:', self.zone_number, self.zone_letter)
@@ -203,7 +202,7 @@ class FPDEM_Raster(object):
         # With filtering
         elev_array = gdf_elev['elevation'].to_numpy()
         if results.max() >= len(elev_array) or results.min() < 0:
-            raise ValueError("results contains indices out of limits compared to gdf_elev")
+            raise ValueError("Results contains indices out of limits compared to gdf_elev")
         elevation_tab = elev_array[results]
 
         # Initializing variables
@@ -223,9 +222,9 @@ class FPDEM_Raster(object):
 
         # Compute Z and Z_rel (height weighted with the distance to center)
         z = np.nansum(elevation_tab / distances_filtered, axis=1) / np.nansum(1. / distances_filtered, axis=1)
+        z = np.nan_to_num(z, copy=True, nan=0.0, posinf=None, neginf=None)
         z_rel = np.abs(np.nanstd(elevation_tab, axis=1) / z_mean)
         z_rel = np.nan_to_num(z_rel, copy=True, nan=0.0, posinf=None, neginf=None)
-        z = np.nan_to_num(z, copy=True, nan=0.0, posinf=None, neginf=None)
         dist_mean = np.nan_to_num(dist_mean, copy=True, nan=0.0, posinf=None, neginf=None)
         dist_min = np.nan_to_num(dist_min, copy=True, nan=0.0, posinf=None, neginf=None)
 
@@ -243,14 +242,19 @@ class FPDEM_Raster(object):
         # Compute cubic interpolation
         z2d = interpolate.griddata(points[0], z2d[np.where(z2d != 0)], (grid_x, grid_y), method='cubic')
 
+        # Compute quality flag
+        qual_flag_2d = compute_qual_flag(dist_mean_2d, z_rel_2d)
+
         # Read the area polygon defined in the extract_area step
         mask = shapefile.Reader(self.mask)
 
         # Define the projection according to provided EPSG
-        proj = pyproj.Proj(init='EPSG:' + str(self.epsg))
-
-        # Compute quality flag
-        qual_flag_2d = compute_qual_flag(dist_mean_2d, z_rel_2d)
+        if self.mode == 'latlon':
+            proj = pyproj.Proj(init='EPSG:' + str(self.epsg))
+        elif self.mode == 'utm':
+            hemisphere = "N" if self.zone_letter.upper() >= "N" else "S"  # N to X -> North ; C to M -> South
+            epsg = (32600 if hemisphere.upper() == "N" else 32700) + self.zone_number
+            proj = pyproj.Proj(init='EPSG:' + str(epsg))
 
         # Compute mask in latlon and utm coordinates
         extracted_area_utm = []

@@ -376,13 +376,13 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
         # Coordinates
         ds = ds.assign_coords(
             x_utm=ds.x_utm.assign_attrs(
-                standard_name="x_utm",
-                long_name="x coordinate",
+                standard_name="projection_x_coordinate",
+                long_name="x coordinate in UTM zone",
                 units="m",
             ),
             y_utm=ds.y_utm.assign_attrs(
-                standard_name="y_utm",
-                long_name="y coordinate",
+                standard_name="projection_y_coordinate",
+                long_name="y coordinate in UTM zone",
                 units="m",
             ),
         )
