@@ -12,6 +12,9 @@ Example of command to launch the code:
 
 For the code FPDEM, the PIXC files are stored in the directory: .[..]/Haditha/input/pixc (The path should be defined in the FPDEM script parameters file SWOT_Param_L2_HR_FPDEM_Haditha.rdf)
 
+Some cycles seem to be bad or will cause issues for the FPDEM bathymetry extraction:
+For tile 471_215R: 9, 13, 18, 25, 39
+
 #
 # Parameters file
 

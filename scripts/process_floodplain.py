@@ -360,10 +360,13 @@ class Floodplain(object):
                         if self.cluster_method_choice == 'birch' or self.cluster_method_choice == 'kmeans':
                             clust.clustering_method(method=self.cluster_method_choice)
                         elif self.cluster_method_choice == 'hdbscan_tsne':
+                            clust.tsne()
                             clust.clustering_tsne_hdbscan()
                         else:
+                            clust.umap()
                             clust.clustering_umap_hdbscan()
-                        clust.get_water_soil_labels(water_extract, self.pekel_0_100_poly, self.poly_sword)
+                        clust.get_water_soil_labels(water_extract, self.pekel_0_100_poly, self.poly_sword,
+                                                    method=self.cluster_method_choice)
 
                         if clust.sub_img_labeled_water is not None:
                             geom = gpd.points_from_xy(clust.sub_img_labeled_water[:, 2],

@@ -18,7 +18,7 @@ PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_H
 # Output info
 #
 # Output directory
-output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Haditha/output_test
+output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Haditha/output
 
 # Output filename extensions
 tile name = 47N3E
@@ -57,7 +57,7 @@ use mask = 0
 # Buffer in soil geometry (degrees)
 mask buffer size = 0.02 # Optional parameter : only required if use mask >= 1
 # PLD info
-lake id = 0 # Optional parameter : only required if use mask = 1
+lake id = 2940021003 # Optional parameter : only required if use mask = 1
 PLD path = /work/SWOT/swotdev/swotpub/BD/BD_lakes/PLD/Nom/ # Optional parameter : only required if use mask = 1
 
 

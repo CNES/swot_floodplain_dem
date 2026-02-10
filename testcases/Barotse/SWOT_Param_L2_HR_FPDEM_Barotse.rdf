@@ -18,7 +18,7 @@ PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_B
 # Output info
 #
 # Output directory
-output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output_test2
+output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output
 
 # Output filename extensions
 tile name = 15S22E
@@ -139,4 +139,3 @@ concave hull ratio = 0.005
 mode = latlon
 # The resolution is in degrees for latlon mode and meters for utm mode
 resolution = 0.000277777
-

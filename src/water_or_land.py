@@ -325,22 +325,6 @@ def find_body_category(water_l, pekel_0_100_poly, poly_sword,
     # Categorizing the detected water body into land, water or water_land
     h_hist, sig_hist = compute_histogram(water_l)
 
-    if plot[0:3] == "yes":
-        fig1, (ax11, ax12) = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
-        ax11.set_title(f"Height (m) hist", fontsize=10)
-        ax11.set_ylabel('Count')
-        ax11.set_xlabel('Height')
-        ax11.stairs(h_hist[0], h_hist[1])
-        ax12.set_title(f"Sig0 (dB) hist", fontsize=10)
-        ax12.stairs(sig_hist[0], sig_hist[1])
-        ax12.set_xlabel('Sig0')
-        ax12.set_ylabel('Count')
-        if plot == 'yes2':
-            plt.show()
-        else:
-            fig1.savefig(os.path.join(output_path, f'cycle{cycle}/plot_hist_cycle{cycle}_label{label}.png'))
-            plt.close(fig1)
-
     med_s, skh, sks, kh, ks, r2h, r2s = determine_normality_parameters(water_l)
 
     ratio_pekel = len(water_l.clip(pekel_0_100_poly)) / len(water_l)
@@ -352,6 +336,28 @@ def find_body_category(water_l, pekel_0_100_poly, poly_sword,
     logging.info(f'Normality parameters (median_sig0, skew_h, skew_sig0, kurtosis_h, kurtosis_sig0, R²_h, R²_sig0):'
                  f'{med_s}, {skh}, {sks}, {kh}, {ks}, {r2h}, {r2s}')
     categ_params = [ratio_pekel, ratio_sword, med_s, skh, sks, kh, ks, r2h, r2s]
+
+    if plot[0:3] == "yes":
+        fig1, (ax11, ax12) = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
+        fig1.suptitle(f'ratio_Pekel=%.2f; ratio_sword=%.2f' %(ratio_pekel, ratio_sword))
+        ax11.set_title(f"Height (m) hist", fontsize=10)
+        ax11.set_ylabel('Count')
+        ax11.set_xlabel('Height')
+        ax11.stairs(h_hist[0], h_hist[1],
+                    label=f'skew=%.2f\nkurtosis=%.2f\nR^2=%.3f' %(skh, kh, r2h))
+        ax11.legend(handlelength=0., handleheight=0, handletextpad=0)
+        ax12.set_title(f"Sig0 (dB) hist", fontsize=10)
+        ax12.stairs(sig_hist[0], sig_hist[1],
+                    label=f'median=%.2f\nskew=%.2f\nkurtosis=%.2f\nR^2=%.3f' %(med_s, sks, ks, r2s))
+        ax12.legend(handlelength=0., handleheight=0, handletextpad=0)
+        ax12.set_xlabel('Sig0')
+        ax12.set_ylabel('Count')
+        if plot == 'yes2':
+            plt.show()
+        else:
+            fig1.savefig(os.path.join(output_path,
+                                      f'cycle{cycle}/plot_histograms_of_h_sig0_cycle{cycle}_label{label}.png'))
+            plt.close(fig1)
 
     water_type = determine_water_body_type(choices.copy(), med_s, skh, sks, kh, ks, ratio_pekel, ratio_sword)
     return water_type, categ_params

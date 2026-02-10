@@ -53,9 +53,9 @@ swot tiles file = /work/SWOT/swotdev/swotdev/stephag/orbits/swot_science_hr_2.0s
 # To filter points around a specific lake, river, 
 # or filter only points present in Pekel occurrences (1->100%; with a buffer if mask_buffer_size != 0)
 # 0 : no; 1 : yes (with PLD); 2 : yes (with Pekel); 3 : yes (with Sword)
-use mask = 0
+use mask = 1
 # Buffer in soil geometry (degrees)
-mask buffer size = 0.02 # Optional parameter : only required if use mask >= 1
+mask buffer size = 0.03 # Optional parameter : only required if use mask >= 1
 # PLD info
 lake id = 2320116363 # Optional parameter : only required if use mask = 1
 PLD path = /work/SWOT/swotdev/swotpub/BD/BD_lakes/PLD/Nom/ # Optional parameter : only required if use mask = 1

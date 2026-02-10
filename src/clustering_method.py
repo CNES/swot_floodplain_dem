@@ -8,10 +8,14 @@ Copyright (c) 2018, CNES
 
 import os
 import logging
+import random
 import pandas as pd
 import geopandas as gpd
 import numpy as np
 from skimage import morphology
+import scipy
+from scipy import stats
+from scipy.spatial import distance, Delaunay
 
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans, Birch, HDBSCAN
@@ -22,10 +26,6 @@ from sklearn.ensemble import IsolationForest
 
 import umap
 from umap import UMAP
-
-import scipy
-from scipy import stats
-from scipy.spatial import distance, Delaunay
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
@@ -118,7 +118,7 @@ class Clustering_Method(object):
                 plt.show()
             else:
                 fig.savefig(os.path.join(self.outPath,
-                                         f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_bodyLabel{self.body_label}.png'))
+                                         f'cycle{self.cycle}/plot_cluster_filt_norm_cycle{self.cycle}_label{self.body_label}.png'))
                 plt.close(fig)
 
     #
@@ -129,47 +129,64 @@ class Clustering_Method(object):
         self.data_pca = pca.fit_transform(self.sub_img_rshp_scaled)
         self.expl_vr = pca.explained_variance_ratio_
 
-    #
-    def tsne(self):
-        np.random.seed(42)
-        if self.sub_img_rshp_scaled.shape[0] < 100_000:
-            size_ech = self.sub_img_rshp_scaled.shape[0]
+    def plotting_clusters(self, method='kmeans'):
 
-        else:
-            size_ech = 100_000
-        self.indices_ssech = np.random.choice(self.sub_img_rshp_scaled.shape[0], size=size_ech, replace=False)
-        self.sub_img_tsne = self.sub_img_rshp_scaled[self.indices_ssech]
-        tsne = TSNE(n_components=2, perplexity=40, random_state=42, init='pca')
-        self.data_tsne = tsne.fit_transform(self.sub_img_tsne)
-        if self.plot == 'yes2':
-            plt.figure(figsize=(6, 4))
-            plt.scatter(self.data_tsne[:, 0], self.data_tsne[:, 1], marker='+')
-            plt.title('TSNE')
-            plt.show()
+        """
+        Show, on a basemap, the different clusters determined by the clustering algorithm
 
-    #
-    def umap(self):
-        if len(self.sub_img_rshp_scaled) < 300_000:
-            size_ech = len(self.sub_img_rshp_scaled)
+        :param method: Name of the clustering method
+        """
+
+        gdf_data = gpd.GeoDataFrame(geometry=gpd.points_from_xy(self.sub_img_labeled[:, -3],
+                                                                self.sub_img_labeled[:, -2]),
+                                    crs="EPSG:4326")
+
+        gdf_data['longitude'] = gdf_data.geometry.get_coordinates().x.values
+        gdf_data['latitude'] = gdf_data.geometry.get_coordinates().y.values
+        gdf_data['h'] = self.sub_img_labeled[:, 0]
+        gdf_data['sig0'] = self.sub_img_labeled[:, 1]
+
+        # Extent
+        bnds = gdf_data.total_bounds
+        extent = [bnds[0], bnds[2], bnds[1], bnds[3]]
+
+        # Define the colors of labels
+        n_clusters = len(list(set(self.labels)))
+        if n_clusters == 3:
+            colors = np.array(['red', 'teal', 'yellow'])[self.labels]
         else:
-            size_ech = 300_000
-        self.indices_ssech_umap = np.random.choice(self.sub_img_rshp_scaled.shape[0], size=size_ech, replace=False)
-        self.sub_img_umap = self.sub_img_rshp_scaled[self.indices_ssech_umap]
-        self.data_umap = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1).fit_transform(self.sub_img_umap)
+            colors = np.array(["#"+''.join([random.choice('0123456789ABCDEF')
+                                            for j in range(6)])
+                               for i in range(n_clusters)])[self.labels]
+        # Plot of clustering method
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection=tiler.crs)
+        ax.set_extent(extent, geodetic)
+        ax.add_image(tiler, 16)
+        gdf_data.plot(ax=ax, color=colors, markersize=1.5, alpha=0.7, zorder=5, transform=wgs84)
+        gl1 = ax.gridlines(draw_labels=True)
+        gl1.top_labels = False
+        gl1.right_labels = False
+        ax.set_title(f'Clustering results with {n_clusters} clusters to categorize: Label {self.body_label}')
         if self.plot == 'yes2':
-            plt.figure(figsize=(6, 4))
-            plt.scatter(self.data_umap[:, 0], self.data_umap[:, 1], s=5, alpha=0.6)
-            plt.title('UMAP')
             plt.show()
+        else:
+            fig.savefig(os.path.join(self.outPath,
+                                     f'cycle{self.cycle}/plot_cluster_{method}_cycle{self.cycle}_label{self.body_label}.png'))
+            plt.close(fig)
+
+        return gdf_data, extent
 
     #
     def clustering_method(self, method='kmeans'):
         """
+        Perform the clustering and separate label into three clusters with Kmeans or Birch
 
-        :param method:
-        :return:
+        :param method: Choose between Kmeans or Birch
         """
+
         logging.info(f'    Performing clustering with algorithm {method}')
+
         nb_cluster = 3
         random_state = 42
 
@@ -184,17 +201,9 @@ class Clustering_Method(object):
         self.labels = model.labels_
         self.sub_img_labeled = np.column_stack((self.img_filtered, self.labels))
 
-        gdf_data = gpd.GeoDataFrame(geometry=gpd.points_from_xy(self.sub_img_labeled[:, -3],
-                                                                self.sub_img_labeled[:, -2]),
-                                    crs="EPSG:4326")
-        gdf_data['clustLabel'] = self.labels
-
         if self.plot[0:3] == 'yes':
 
-            gdf_data['longitude'] = gdf_data.geometry.get_coordinates().x.values
-            gdf_data['latitude'] = gdf_data.geometry.get_coordinates().y.values
-            gdf_data['h'] = self.sub_img_labeled[:, 0]
-            gdf_data['sig0'] = self.sub_img_labeled[:, 1]
+            gdf_data, extent = self.plotting_clusters(method=method)
 
             median_h = np.median(gdf_data.h.values)
             median_s = np.median(gdf_data.sig0.values)
@@ -204,10 +213,6 @@ class Clustering_Method(object):
             hmax = median_h+var_h
             smin = median_s-var_s
             smax = median_s+var_s
-
-            # Plots extent
-            bnds = gdf_data.total_bounds
-            extent = [bnds[0], bnds[2], bnds[1], bnds[3]]
 
             # Plots of height and sig0 after clustering filtering
             fig = plt.figure(figsize=(15, 7))
@@ -222,7 +227,7 @@ class Clustering_Method(object):
             gl2 = ax1.gridlines(draw_labels=True)
             gl2.top_labels = False
             gl2.right_labels = False
-            ax1.set_title("Height after clustering filtering")
+            ax1.set_title("Height after filtering")
 
             ax2 = fig.add_subplot(122, projection=tiler.crs)
             ax2.set_extent(extent, geodetic)
@@ -235,117 +240,88 @@ class Clustering_Method(object):
             gl3 = ax2.gridlines(draw_labels=True)
             gl3.top_labels = False
             gl3.right_labels = False
-            ax2.set_title("Sig0 after clustering filtering")
+            ax2.set_title("Sig0 after filtering")
             if self.plot == 'yes2':
                 plt.show()
             else:
                 fig.savefig(os.path.join(self.outPath,
-                                         f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_h_sig0_bodyLabel{self.body_label}.png'))
+                                         f'cycle{self.cycle}/plot_cluster_cycle{self.cycle}_h_sig0_label{self.body_label}.png'))
                 plt.close(fig)
 
-            # Plot of clustering method
-            colors = np.array(['red', 'teal', 'yellow'])[self.labels]
-
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection=tiler.crs)
-            ax.set_extent(extent, geodetic)
-            ax.add_image(tiler, 16)
-            gdf_data.plot(ax=ax, color=colors, markersize=1.5, alpha=0.7, zorder=5, transform=wgs84)
-            gl1 = ax.gridlines(draw_labels=True)
-            gl1.top_labels = False
-            gl1.right_labels = False
-            ax.set_title(f'Clustering results: Label {self.body_label}')
-            if self.plot == 'yes2':
-                plt.show()
-            else:
-                fig.savefig(os.path.join(self.outPath,
-                                         f'cycle{self.cycle}/plot_clust_cycle{self.cycle}_results_bodyLabel{self.body_label}.png'))
-                plt.close(fig)
+    #
+    def tsne(self):
+        """ Dimension reduction using TSNE algorithm """
+        np.random.seed(42)
+        if self.sub_img_rshp_scaled.shape[0] < 100_000:
+            size_ech = self.sub_img_rshp_scaled.shape[0]
+        else:
+            logging.warning("The sample size is reduced because it is bigger than 100_000")
+            size_ech = 100_000
+        self.indices_ssech = np.random.choice(self.sub_img_rshp_scaled.shape[0], size=size_ech, replace=False)
+        self.sub_img_tsne = self.sub_img_rshp_scaled[self.indices_ssech]
+        tsne = TSNE(n_components=2, perplexity=40, random_state=42, init='pca')
+        self.data_tsne = tsne.fit_transform(self.sub_img_tsne)
 
     #
     def clustering_tsne_hdbscan(self):
+        """ Clustering on TSNE new dimension using HDBSCAN """
         model_tsne = HDBSCAN(min_cluster_size=int(self.data_tsne.shape[0]*0.01)).fit(self.data_tsne)
-        self.labels_tsne = model_tsne.labels_
+        self.labels = model_tsne.labels_
+        self.sub_img_labeled = np.column_stack((self.sub_img_tsne, self.labels))
 
-        if self.plot == 'yes2':
-            unique_labels = np.unique(self.labels_tsne)
-            cmap = plt.cm.get_cmap('viridis', len(unique_labels))
-            colors = cmap(np.searchsorted(unique_labels, self.labels_tsne))
-            gdf_data_tsne = gpd.GeoDataFrame(geometry=gpd.points_from_xy(self.sub_img_labeled[self.indices_ssech, -3],
-                                                                         self.sub_img_labeled[self.indices_ssech, -2]),
-                                             crs="EPSG:4326")
-            gdf_data_tsne = gdf_data_tsne.to_crs(epsg=3857)
-            fig, ax = plt.subplots(figsize=(12, 6))
-            gdf_data_tsne.plot(ax=ax, color=colors, markersize=1, alpha=0.7)
+        # Plot
+        gdf_data, extent = self.plotting_clusters(method='hdbscan_tsne')
 
-            norm = Normalize(vmin=0, vmax=len(unique_labels) - 1)
-            sm = ScalarMappable(norm=norm, cmap=cmap)
-            sm.set_array([])
-            cbar = plt.colorbar(sm, ax=ax)
-            cbar.set_label('Labels')
-            plt.show()
-
-            cmap = plt.cm.viridis
-            plt.scatter(self.data_tsne[:, 0], self.data_tsne[:, 1], c=self.labels_tsne, marker='+', cmap=cmap)
-            plt.show()
+    #
+    def umap(self):
+        """ Dimension reduction using UMAP algorithm """
+        if len(self.sub_img_rshp_scaled) < 300_000:
+            size_ech = len(self.sub_img_rshp_scaled)
+        else:
+            logging.warning("The sample size is reduced because it is bigger than 300_000")
+            size_ech = 300_000
+        self.indices_ssech_umap = np.random.choice(self.sub_img_rshp_scaled.shape[0], size=size_ech, replace=False)
+        self.sub_img_umap = self.sub_img_rshp_scaled[self.indices_ssech_umap]
+        self.data_umap = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1).fit_transform(self.sub_img_umap)
 
     #
     def clustering_umap_hdbscan(self):
-        """
-
-        """
+        """ Clustering on UMAP new dimension using HDBSCAN """
         model_umap = HDBSCAN(min_cluster_size=int(self.data_umap.shape[0]*0.01)).fit(self.data_umap)
-        self.labels_umap = model_umap.labels_
+        self.labels = model_umap.labels_
+        self.sub_img_labeled = np.column_stack((self.sub_img_umap, self.labels))
 
-        mask_umap_valid = self.labels_umap != -1
-        # mask_indice = self.indices_ssech_umap[mask_umap_valid]
-
-        if self.plot == 'yes2':
-            unique_labels = np.unique(self.labels_umap)
-            cmap = plt.cm.get_cmap('viridis', len(unique_labels))
-            colors = cmap(np.searchsorted(unique_labels, self.labels_umap))
-            gdf_data_umap = gpd.GeoDataFrame(geometry=gpd.points_from_xy(self.sub_img_labeled[self.indices_ssech_umap, -3],
-                                                                         self.sub_img_labeled[self.indices_ssech_umap, -2]),
-                                             crs="EPSG:4326")
-            gdf_data_umap = gdf_data_umap.to_crs(epsg=3857)
-            fig, ax = plt.subplots(figsize=(12, 6))
-            gdf_data_umap.plot(ax=ax, color=colors, markersize=1, alpha=0.7)
-
-            norm = Normalize(vmin=0, vmax=len(unique_labels) - 1)
-            sm = ScalarMappable(norm=norm, cmap=cmap)
-            sm.set_array([])
-            cbar = plt.colorbar(sm, ax=ax)
-            cbar.set_label('Labels')
-            plt.show()
-
-            cmap = plt.cm.viridis
-            plt.scatter(self.data_umap[:, 0], self.data_umap[:, 1], c=self.labels_umap, marker='+', cmap=cmap)
-            plt.show()
+        # Plot
+        gdf_data, extent = self.plotting_clusters(method='hdbscan_umap')
 
     #
-    def get_water_soil_labels(self, water_extract, pekel_0_100_poly, poly_sword):
+    def get_water_soil_labels(self, water_extract, pekel_0_100_poly, poly_sword, method='kmeans'):
         """
         :param water_extract:
         :param pekel_0_100_poly:
         :param poly_sword:
-        :return:
         """
         logging.info('    Get the labels for soil and for water')
 
         labels_present = list(set(self.labels))
-        # nb_labels = len(labels_present)
-        # print(f'nb_labels: {nb_labels}, {[[list(self.labels).count(i), int(i)] for i in set(self.labels)]}')
 
+        # Initialize
         self.sub_img_labeled_land = None
         self.sub_img_labeled_water = None
         water_body_type = {'LAND': [], 'WATER': []}
+
+        # Loop over the clusters labels
         for k, lab in enumerate(labels_present):
-            sub_array = self.sub_img_labeled[self.sub_img_labeled[:, -1] == lab]
-            geom = gpd.points_from_xy(sub_array[:, 2], sub_array[:, 3])
-            water_filtered = water_extract[water_extract.geometry.isin(geom)]
-            cat, cat_params = find_body_category(water_filtered, pekel_0_100_poly, poly_sword,
-                                                 plot='no', choices=['WATER', 'LAND'])
-            water_body_type[cat].append(int(lab))
+            if lab != -1:
+                # Retrieve array only for the cluster label
+                sub_array = self.sub_img_labeled[self.sub_img_labeled[:, -1] == lab]
+                # Transform into a GeoDataFrame
+                geom = gpd.points_from_xy(sub_array[:, 2], sub_array[:, 3])
+                water_filtered = water_extract[water_extract.geometry.isin(geom)]
+                # Categorize the cluster label
+                cat, cat_params = find_body_category(water_filtered, pekel_0_100_poly, poly_sword,
+                                                     plot='no', choices=['WATER', 'LAND'])
+                water_body_type[cat].append(int(lab))
         # print(f'    water_body_type:  {water_body_type}')
 
         if water_body_type['WATER'] != []:
@@ -354,3 +330,47 @@ class Clustering_Method(object):
         if water_body_type['LAND'] != []:
             self.sub_img_labeled_land = self.sub_img_labeled[np.isin(self.sub_img_labeled[:, 4],
                                                                      water_body_type['LAND'])]
+
+        if self.plot[0:3] == 'yes':
+            if self.sub_img_labeled_water is not None:
+                gdf_dataw = gpd.GeoDataFrame(geometry=gpd.points_from_xy(self.sub_img_labeled_water[:, -3],
+                                                                         self.sub_img_labeled_water[:, -2]),
+                                             crs="EPSG:4326")
+                gdf_dataw['longitude'] = gdf_dataw.geometry.get_coordinates().x.values
+                gdf_dataw['latitude'] = gdf_dataw.geometry.get_coordinates().y.values
+            else:
+                gdf_dataw = gpd.GeoDataFrame()
+            if self.sub_img_labeled_land is not None:
+                gdf_datal = gpd.GeoDataFrame(geometry=gpd.points_from_xy(self.sub_img_labeled_land[:, -3],
+                                                                         self.sub_img_labeled_land[:, -2]),
+                                             crs="EPSG:4326")
+                gdf_datal['longitude'] = gdf_datal.geometry.get_coordinates().x.values
+                gdf_datal['latitude'] = gdf_datal.geometry.get_coordinates().y.values
+            else:
+                gdf_datal = gpd.GeoDataFrame()
+            gdf_data = pd.concat([gdf_dataw, gdf_datal])
+
+            # Extent
+            bnds = gdf_data.total_bounds
+            extent = [bnds[0], bnds[2], bnds[1], bnds[3]]
+
+            # Plot of clustering method after categorization of clusters
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection=tiler.crs)
+            ax.set_extent(extent, geodetic)
+            ax.add_image(tiler, 16)
+            if self.sub_img_labeled_land is not None:
+                gdf_datal.plot(ax=ax, color='r', markersize=1.5, alpha=0.7, zorder=5, transform=wgs84, label='land')
+            if self.sub_img_labeled_water is not None:
+                gdf_dataw.plot(ax=ax, color='cyan', markersize=1.5, alpha=0.7, zorder=5, transform=wgs84, label='water')
+            gl1 = ax.gridlines(draw_labels=True)
+            gl1.top_labels = False
+            gl1.right_labels = False
+            ax.set_title(f'Clustering results after categorization of clusters: Label {self.body_label}')
+            ax.legend()
+            if self.plot == 'yes2':
+                plt.show()
+            else:
+                fig.savefig(os.path.join(self.outPath,
+                                         f'cycle{self.cycle}/plot_cluster_lw_{method}_cycle{self.cycle}_label{self.body_label}.png'))
+                plt.close(fig)

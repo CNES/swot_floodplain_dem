@@ -172,7 +172,7 @@ def get_range_azimuth_extrema(grae_variable, grae_range_size, grae_azimuth_size)
     else:
         grae_c0 = 0
         grae_c1 = len(b) - 1
-    print('    Azimuth/Range extrema:  lat ', grae_l0, grae_l1, '-- lon ', grae_c0, grae_c1)
+    # print('    Azimuth/Range extrema:  lat ', grae_l0, grae_l1, '-- lon ', grae_c0, grae_c1)
 
     return grae_l0, grae_l1, grae_c0, grae_c1
 
