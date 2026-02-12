@@ -29,7 +29,6 @@ if __name__ == "__main__":
     level = getattr(logging, "INFO")
     logging.basicConfig(filename=None, format='%(asctime)s [%(levelname)s] %(message)s', level=level)
 
-    print(args.parameter_file)
     parameters = my_rdf.myRdfReader(args.parameter_file)
 
     # Prepare output names
