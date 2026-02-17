@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=FPDEM_Tele
+#SBATCH --job-name=FPDEM_Koshi
 #SBATCH -N 1
 #SBATCH -n 12
 #SBATCH --mem-per-cpu=12G
@@ -18,4 +18,4 @@ export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
 export SSL_CERT_DIR=/etc/pki/tls/certs
 
 # Launch the FPDEM algorithm
-python /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/scripts/process_full_processing_floodplain.py /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Tele_Mali/SWOT_Param_L2_HR_FPDEM_Tele.rdf
+python /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/scripts/process_full_processing_floodplain.py /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Koshi/SWOT_Param_L2_HR_FPDEM_Koshi.rdf
