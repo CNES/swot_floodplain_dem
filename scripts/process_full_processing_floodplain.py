@@ -3,7 +3,6 @@ import os
 import logging
 import my_rdf_file as my_rdf
 import my_timer as my_timer
-import pandas as pd
 
 from names import (FPDEM_BASENAME, POLYGON_SUFFIX, FPDEM_POINTCLOUD_BASENAME,
                    MASK_SUFFIX, FPDEM_RASTER_BASENAME, compute_name)

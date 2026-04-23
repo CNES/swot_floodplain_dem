@@ -128,8 +128,8 @@ def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel
             fig.savefig(f'{outpath}/cycle{cycle}/plot_all_labels_position.png')
             plt.close(fig)
 
-    return label_tab, count, classification_tab, height_tab, sig0_tab, \
-           azimuth_index_tab, range_index_tab, latitude_tab, longitude_tab
+    return (label_tab, count, classification_tab, height_tab, sig0_tab,
+            azimuth_index_tab, range_index_tab, latitude_tab, longitude_tab)
 
 def compute_subwater_extract_from_label(water, label_tab, azimuth_index_tab, range_index_tab, label):
     """
