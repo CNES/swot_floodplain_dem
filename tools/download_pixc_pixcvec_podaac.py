@@ -64,10 +64,10 @@ Download SWOT PIXC / PIXCVec granules from PODAAC.
 Usage examples:
 
   1) Download a version C granule with all options:
-     python download_pixc_pixvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXC -pts 497 199 L -st 2024-01-01T00:00:00 -et 2024-01-02T00:00:00 -crid PIC0
+     python download_pixc_pixcvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXC -pts 497 199 L -st 2024-01-01T00:00:00 -et 2024-01-02T00:00:00 -crid PIC0
 
   2) Download a version D granule with all options:
-     python download_pixc_pixvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXCVec_D -pts 196 185 R -st 2024-02-01T00:00:00 -et 2024-02-02T00:00:00 -crid PGD0
+     python download_pixc_pixcvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXCVec_D -pts 196 185 R -st 2024-02-01T00:00:00 -et 2024-02-02T00:00:00 -crid PGD0
 """,
     formatter_class=argparse.RawTextHelpFormatter
 )
@@ -154,7 +154,7 @@ if resp.lower() != "y":
     sys.exit(0)
 
 # Download loop (parallelized)
-os.makedirs(args.dirs, exist_ok=True)
+os.makedirs(args.d, exist_ok=True)
 
 max_workers = 5  # Adjust according to your network
 
@@ -162,7 +162,7 @@ max_workers = 5  # Adjust according to your network
 def download_granule(g):
     """Download a single granule with retries, skip if already downloaded."""
     name = g["umm"]["GranuleUR"]
-    outdir = os.path.join(args.dirs, name.replace(".nc", ""))
+    outdir = os.path.join(args.d, name.replace(".nc", ""))
     os.makedirs(outdir, exist_ok=True)
 
     # Check if file already exists and is readable
