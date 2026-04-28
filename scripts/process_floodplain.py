@@ -127,7 +127,7 @@ class Floodplain(object):
             # Quality flags
             self.classif_qual = int(param.getValue("classification_qual").split(" ")[0])
             self.geoloc_qual = int(param.getValue("geolocation_qual").split(" ")[0])
-            self.sig0_qual = param.getValue("sig0_qual").split(" ")[0]
+            self.sig_qual = param.getValue("sig0_qual").split(" ")[0]
             # Parameters for removing isolated points
             self.d_ngbr = float(param.getValue("distance to neighbors").split(" ")[0])
             self.n_ngbr = int(param.getValue("number of neighbors").split(" ")[0])
@@ -297,7 +297,7 @@ class Floodplain(object):
 
             water, min_range_ind_to_remove = pre_processing_pixc(pixc_reader,
                                                                  self.cross_track_min, self.threshold,
-                                                                 self.sig0_qual)
+                                                                 self.sig_qual)
 
             (label_tab, count, classification_tab,
              height_tab, sig0_tab,
@@ -328,6 +328,7 @@ class Floodplain(object):
                 if self.approach == 'mixed':
                     water_extractCateg = water_extract[(water_extract.classification == 3) |
                                                        (water_extract.classification == 4)]
+                    water_extractCateg = water_extractCateg.loc[(water_extractCateg.sig0_qual == 0)]
                     if len(water_extractCateg) == 0:
                         logging.warning('No points of classification 3 or 4 found in this water body')
                         logging.warning('    so no categorization possible!')
@@ -438,7 +439,8 @@ class Floodplain(object):
             # Flag filtering
             fpdem_land_pixel = filter_data_based_on_quality_flag(fpdem_land_pixel,
                                                                  self.classif_qual,
-                                                                 self.geoloc_qual)
+                                                                 self.geoloc_qual,
+                                                                 self.sig_qual)
 
             # Get utm coordinates
             logging.info('Converting to UTM')

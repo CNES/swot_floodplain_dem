@@ -137,6 +137,8 @@ class PixcReader():
         d_az_ground = d_az_trj * EARTH_RADIUS / alt
         self.along_track_sampling = d_az_ground
 
+        dnc.close()
+
     def get_data(self) -> gpd.GeoDataFrame:
         return self.data.copy()
 

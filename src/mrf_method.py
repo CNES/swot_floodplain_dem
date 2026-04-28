@@ -4,10 +4,11 @@ Apply the MRF (Markov Random Field) method to extract bathymetry
 """
 
 import os
-from pyproj import CRS
+import logging
 import numpy as np
 import xarray as xr
 from netCDF4 import Dataset
+from pyproj import CRS
 from scipy.spatial import cKDTree
 from skimage.morphology import erosion, dilation
 import matplotlib.pyplot as plt
@@ -16,26 +17,36 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import mrf_waterland_toolbox as toolbox
 
 
-def meters_to_deg(step_m, latitude_deg):
-    """
-    Convert meters to degrees for lat/lon coordinates
+# def meters_to_deg(step_m, latitude_deg):
+#     """
+#     Convert meters to degrees for lat/lon coordinates
+#
+#     :param step_m: Step inm meters
+#     :param latitude_deg: Latitude position
+#     :return: lat and lon in degrees
+#     """
+#     lat_rad = latitude_deg * np.pi / 180.
+#
+#     meters_per_deg_lat = 111_320
+#     meters_per_deg_lon = 111_320 * np.cos(lat_rad)
+#
+#     dlat = step_m / meters_per_deg_lat
+#     dlon = step_m / meters_per_deg_lon
+#
+#     return dlat, dlon
 
-    :param step_m: Step inm meters
-    :param latitude_deg: Latitude position
-    :return: lat and lon in degrees
-    """
-    lat_rad = latitude_deg * np.pi / 180.
 
-    meters_per_deg_lat = 111_320
-    meters_per_deg_lon = 111_320 * np.cos(lat_rad)
+def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', resolution=0.000277777, margin=[0., 0.]):
+    '''
+    Produce the reference raster grid
 
-    dlat = step_m / meters_per_deg_lat
-    dlon = step_m / meters_per_deg_lon
-
-    return dlat, dlon
-
-
-def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', step=50., margin=[0., 0.]):
+    :param refdem_grid: Filename of  the reference grid or None
+    :param path_ref_dem: Path to reference grid if file given
+    :param pixc:
+    :param resolution:
+    :param margin:
+    :return:
+    '''
 
     if refdem_grid:
         ref_dem = xr.open_dataset(path_ref_dem)
@@ -49,14 +60,13 @@ def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', step=50., margin
         geospatial_lat_min = ds.geospatial_lat_min
         geospatial_lat_max = ds.geospatial_lat_max
 
-        dlat, dlon = meters_to_deg(step, (geospatial_lat_min + geospatial_lat_max) / 2.)
-
         longitude_ref_dem = np.arange(geospatial_lon_min - margin[0],
                                       geospatial_lon_max + margin[0],
-                                      dlon)
+                                      resolution)
         latitude_ref_dem = np.arange(geospatial_lat_min - margin[1],
                                      geospatial_lat_max + margin[1],
-                                     dlat)
+                                     resolution)
+
         mean_dem = np.zeros([len(latitude_ref_dem), len(longitude_ref_dem)])
 
         ref_dem = xr.Dataset(
@@ -72,6 +82,13 @@ def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', step=50., margin
 
 
 def extract_params_from_pixc(file, root, ref_dem):
+    '''
+
+    :param file: PIXC filename
+    :param root: path to PIXC file
+    :param ref_dem: reference grid for rasterization of PIXC
+    :return: rasterized height, sig0...
+    '''
     date = file.split("_")[7][0:8]
 
     grid_h = xr.DataArray(
@@ -110,28 +127,34 @@ def extract_params_from_pixc(file, root, ref_dem):
         coords=ref_dem.coords
     )
 
-    points = xr.open_dataset(os.path.join(root, file), group="pixel_cloud")
-    noise = xr.open_dataset(os.path.join(root, file), group="noise")
+    with xr.open_dataset(os.path.join(root, file), group="pixel_cloud") as points:
 
-    points_classif = points.classification.values
+        noise = xr.open_dataset(os.path.join(root, file), group="noise")
+        points['elevation'] = (points['height'] - points['pole_tide'] -
+                               points['load_tide_got'] - points['load_tide_fes'] -
+                               points['solid_earth_tide'] - points['geoid'])
+        points['diff'] = (points['pole_tide'] + points['load_tide_got'] + points['load_tide_fes'] +
+                               points['solid_earth_tide'] + points['geoid'])
+        print(points['diff'].mean())
 
-    ind_classif = np.where(points_classif > 2)
+        points_classif = points.classification.values
+        ind_classif = np.where(points_classif > 2)
 
-    points_lon = points.longitude.values[ind_classif]
-    points_lat = points.latitude.values[ind_classif]
-    points_inc = points.inc.values[ind_classif]
-    points_height = points.height.values[ind_classif]
-    points_sig0 = points.sig0.values[ind_classif]
+        points_lon = points.longitude.values[ind_classif]
+        points_lat = points.latitude.values[ind_classif]
+        points_inc = points.inc.values[ind_classif]
+        points_elevation = points.elevation.values[ind_classif]
+        points_sig0 = points.sig0.values[ind_classif]
 
-    # points_interferogram = (points.interferogram.values[ind_classif][0, :]
-    #                         + 1j * points.interferogram.values[ind_classif][1, :])
-    points_coh = (np.abs((points.interferogram.values[ind_classif][:, 0]
-                          + 1j * points.interferogram.values[ind_classif][:, 1]) ** 2)
-                  / np.sqrt(
-                (points.power_minus_y.values[ind_classif][:] ** 2 * points.power_plus_y.values[ind_classif][:] ** 2)))
-    points_snr = ((points.power_plus_y.values[ind_classif] - np.nanmean(noise.noise_plus_y.values))
-                  / np.nanmean(noise.noise_plus_y.values))
-    points_coh_th_noise = points_snr / (points_snr + 1)
+        points_coh = (np.abs((points.interferogram.values[ind_classif][:, 0]
+                              + 1j * points.interferogram.values[ind_classif][:, 1]) ** 2)
+                      / np.sqrt(
+                    (points.power_minus_y.values[ind_classif][:] ** 2 * points.power_plus_y.values[ind_classif][:] ** 2)))
+        points_snr = ((points.power_plus_y.values[ind_classif] - np.nanmean(noise.noise_plus_y.values))
+                      / np.nanmean(noise.noise_plus_y.values))
+        points_coh_th_noise = points_snr / (points_snr + 1)
+
+        noise.close()
 
     lon_2d, lat_2d = np.meshgrid(ref_dem.longitude, ref_dem.latitude)
     coords_2d = np.column_stack((lon_2d.ravel(), lat_2d.ravel()))
@@ -146,7 +169,7 @@ def extract_params_from_pixc(file, root, ref_dem):
     mask = (rows < ref_dem.sizes['latitude']) & (cols < ref_dem.sizes['longitude']) & (10 * np.log10(points_sig0) > -20)
 
     grid_inc.data[rows[mask], cols[mask]] += points_inc[mask]
-    grid_h.data[rows[mask], cols[mask]] += points_height[mask]
+    grid_h.data[rows[mask], cols[mask]] += points_elevation[mask]
     grid_sig0.data[rows[mask], cols[mask]] += points_sig0[mask]
     grid_coh.data[rows[mask], cols[mask]] += points_coh[mask]
     grid_coh_th.data[rows[mask], cols[mask]] += points_coh_th_noise[mask]
@@ -187,6 +210,7 @@ def extract_params_from_pixc(file, root, ref_dem):
 def plot_var_and_zoom(var, var_name, cmap=None, vmin=None, vmax=None, zoom=None):
     """
     Plot a variable and, if wanted, a zoom of it right next to it
+
     :param var: variable to plot
     :param var_name: name of the variable for the title
     :param cmap: colormap
@@ -213,36 +237,27 @@ def plot_var_and_zoom(var, var_name, cmap=None, vmin=None, vmax=None, zoom=None)
         fig.colorbar(im0, ax=axes, cax=cax0)
 
 
-# def plot_variables(date, vars, zoom=zoom):
-#
-#     fig, axes = plt.subplots(1, len(vars), figsize=(30, 10))  # 1 row, 2 columns
-#
-#     axes[0].set_title("swot dem " + date)
-#     cax0 = make_axes_locatable(axes[0]).append_axes("right", size="5%", pad=0.05)
-#     dem_plot = axes[0].imshow((vars[0].data)[zoom], vmin=25, vmax=32)
-#     fig.colorbar(dem_plot, ax=axes[0], cax=cax0)
-#
-#     axes[1].set_title("swot sig0 (dB) " + date)
-#     cax1 = make_axes_locatable(axes[1]).append_axes("right", size="5%", pad=0.05)
-#     sig0_plot = axes[1].imshow(vars[1][zoom], vmin=0, vmax=15, cmap="Greys_r")
-#     fig.colorbar(sig0_plot, ax=axes[1], cax=cax1)
-#
-#     if len(vars) >= 2:
-#         axes[2].set_title("proba map without height " + date)
-#         cax2 = make_axes_locatable(axes[2]).append_axes("right", size="5%", pad=0.05)
-#         labels_plot = axes[2].imshow(vars[2][0][zoom])
-#         fig.colorbar(labels_plot, ax=axes[2], cax=cax2)
-#
-#     if len(vars) >= 3:
-#         axes[3].set_title("proba map with height " + date)
-#         cax3 = make_axes_locatable(axes[3]).append_axes("right", size="5%", pad=0.05)
-#         labels_plot_with_height = axes[3].imshow(vars[2][2][zoom])
-#         fig.colorbar(labels_plot_with_height, ax=axes[3], cax=cax3)
-
-
 def apply_mrf_method(fpdem,
                      p_sig0_init, p_ssh_init, land_law, max_iters, convergence, weight_ssh,
                      pixel_res_m, tile_size_km, stride_km, border_exclude_km):
+    '''
+    Use mrf_waterland_toolbox script to apply MRF method and
+    retrieve pixels where there is land and water labellized as 0 and 1
+
+    :param fpdem: list of parameters extracted from PIXC
+    :param p_sig0_init: sig0 initial parameters
+    :param p_ssh_init: height initial parameters
+    :param land_law: 'gaussian' or 'exponnorm' for SSH Land distribution
+    :param max_iters: maximum iterations to prevent infinite loops
+    :param convergence: convergence parameter
+    :param weight_ssh: relative weight of height term in the energy function
+    :param pixel_res_m:
+    :param tile_size_km:
+    :param stride_km:
+    :param border_exclude_km:
+    :return: height, sig0, probability maps and water/land labels
+             for initial MRF run and run with adjusted parameters
+    '''
 
     height_cycle_0 = fpdem[1].data[:, :]
     sig0_cycle_0 = 10 * np.log10(fpdem[4].data[:, :])
@@ -279,27 +294,27 @@ def apply_mrf_method(fpdem,
     height_cycle_0 = height_cycle_0 - np.nanmean(fpdem[0].data[:, :][np.where(labels_smooth_0 == 1)])
 
     p_sig0_init = {
-        'mu_ice': np.nanmean(sig0_cycle_0[np.where(labels_smooth_0 == 0)]),
-        'std_ice': np.nanstd(sig0_cycle_0[np.where(labels_smooth_0 == 0)]),
+        'mu_land': np.nanmean(sig0_cycle_0[np.where(labels_smooth_0 == 0)]),
+        'std_land': np.nanstd(sig0_cycle_0[np.where(labels_smooth_0 == 0)]),
         'mu_water': np.nanmean(sig0_cycle_0[np.where(labels_smooth_0 == 1)]),
         'std_water': np.nanstd(sig0_cycle_0[np.where(labels_smooth_0 == 1)])
     }
 
     p_ssh_init = {
-        'mu_ice': np.nanmean(height_cycle_0[np.where(labels_smooth_0 == 0)]),
-        'std_ice': np.nanstd(height_cycle_0[np.where(labels_smooth_0 == 0)]),
+        'mu_land': np.nanmean(height_cycle_0[np.where(labels_smooth_0 == 0)]),
+        'std_land': np.nanstd(height_cycle_0[np.where(labels_smooth_0 == 0)]),
         'mu_water': np.nanmean(height_cycle_0[np.where(labels_smooth_0 == 1)]),
         'std_water': np.nanstd(height_cycle_0[np.where(labels_smooth_0 == 1)]),
         'expon_k': 1.0, 'expon_loc': 0.1, 'expon_scale': 0.05
     }
 
-    print(p_sig0_init)
-    print(p_ssh_init)
+    logging.info('New sig0 parameters values: ', p_sig0_init)
+    logging.info('New height parameters values: ', p_ssh_init)
 
     proba_map = toolbox.run_tiled_mrf_pipeline(
         sig0_cycle_0, height_cycle_0,
         p_sig0_init, p_ssh_init,
-        ice_law=ice_law,
+        land_law=land_law,
         max_iters=max_iters,
         convergence_threshold=convergence,
         weight_ssh=weight_ssh,
@@ -316,74 +331,59 @@ def apply_mrf_method(fpdem,
 
     return height_cycle_0, sig0_cycle_0, proba_smooth_0, labels_smooth_0, proba_smooth_h, labels_smooth_h
 
-def get_labels(fpdem, idate, proba_map_list, threshold_with_height, threshold_without_height, zoom):
+def get_labels(fpdem, idate, proba_map_list, threshold_with_height, threshold_without_height):
+    '''
+    Extract the water and land labels for each pixel
+
+    :param fpdem: list of parameters extracted from PIXC
+    :param idate: date of the PIXC
+    :param proba_map_list: probability values
+    :param threshold_with_height:
+    :param threshold_without_height:
+    :return: water and land labels array
+    '''
 
     proba_smooth = proba_map_list[idate][0]
-    labels_smooth = proba_map_list[idate][1]
     proba_smooth_with_height = proba_map_list[idate][2]
-    # labels_smooth_with_height = proba_map_list[idate][3]
 
     # Get combined labels by filtering using proba maps
-    labels_combined = np.zeros_like(labels_smooth)
+    labels_combined = np.zeros_like(proba_map_list[idate][1])
     labels_combined = np.where((proba_smooth_with_height > threshold_with_height) &
                                (proba_smooth > threshold_without_height), 1, labels_combined)
     labels_combined = np.where(fpdem[idate][0].data[:, :] == 0, np.nan, labels_combined)
 
-    # Plot, zoomed on a small part of the region
-    fig, axes = plt.subplots(1, 3, figsize=(30, 10))  # 1 row, 2 columns
-
-    axes[0].set_title("swot dem " + fpdem[idate][7])
-    axes[1].set_title("swot sig0 (dB) " + fpdem[idate][7])
-    axes[2].set_title("label map combined " + fpdem[idate][7])
-
-    cax0 = make_axes_locatable(axes[0]).append_axes("right", size="5%", pad=0.05)
-    cax1 = make_axes_locatable(axes[1]).append_axes("right", size="5%", pad=0.05)
-    cax2 = make_axes_locatable(axes[2]).append_axes("right", size="5%", pad=0.05)
-
-    dem_plot = axes[0].imshow(fpdem[idate][0].data[zoom], vmin=25, vmax=32)
-    sig0_plot = axes[1].imshow(10 * np.log10(fpdem[idate][3])[zoom], vmin=0, vmax=15, cmap="Greys_r")
-    labels_plot_combined = axes[2].imshow(labels_combined[zoom])
-
-    fig.colorbar(dem_plot, ax=axes[0], cax=cax0)
-    fig.colorbar(sig0_plot, ax=axes[1], cax=cax1)
-    fig.colorbar(labels_plot_combined, ax=axes[2], cax=cax2)
-
     return labels_combined
 
-def get_mean_dem(fpdem_filter, labels_combined_list_filter, bad_date):
+def get_mean_dem(fpdem, labels_combined_list, bad_dates):
+    '''
+    Calculate the mean height and sig0
 
-    mean_dem = np.zeros_like(fpdem_filter[0][0], dtype=float)
-    mean_sig0 = np.zeros_like(fpdem_filter[0][0], dtype=float)
-    mean_coh = np.zeros_like(fpdem_filter[0][0], dtype=float)
-    mean_coh_th = np.zeros_like(fpdem_filter[0][0], dtype=float)
-    count = np.zeros_like(fpdem_filter[0][0], dtype=float)
+    :param fpdem:
+    :param labels_combined_list:
+    :param bad_dates:
+    :return: Merged height, sig0 and count of water label
+    '''
+
+    mean_dem = np.zeros_like(fpdem[0][0], dtype=float)
+    mean_sig0 = np.zeros_like(fpdem[0][0], dtype=float)
+    mean_coh = np.zeros_like(fpdem[0][0], dtype=float)
+    mean_coh_th = np.zeros_like(fpdem[0][0], dtype=float)
+    count = np.zeros_like(fpdem[0][0], dtype=float)
 
     label_land = 0.
 
-    for i in range(len(fpdem_filter)):
-        if int(fpdem_filter[i][7]) not in bad_date:
-            # ind = np.where(labels_combined_list_filter[i] == 0)
+    for i in range(len(fpdem)):
+        if int(fpdem[i][7]) not in bad_dates:
+            # ind = np.where(labels_combined_list[i] == 0)
 
-            mean_dem += np.where(labels_combined_list_filter[i] == label_land, fpdem_filter[i][0], 0.)
-            mean_sig0 += np.where(labels_combined_list_filter[i] == label_land, fpdem_filter[i][3], 0.)
-            mean_coh += np.where(labels_combined_list_filter[i] == label_land, fpdem_filter[i][5], 0.)
-            mean_coh_th += np.where(labels_combined_list_filter[i] == label_land, fpdem_filter[i][8], 0.)
-
-            # inc = np.where(labels_combined_list_filter[i] == label_land, fpdem_filter[i][2], 0.)
-            # coh = np.where(labels_combined_list_filter[i] == label_land, fpdem_filter[i][5], 0.)
-            # var_h = wavelength * np.sqrt(1/coh**2-1) / 2 / np.pi / np.sin(inc*np.pi/180.)
-            # weight = 1/var_h**2
+            mean_dem += np.where(labels_combined_list[i] == label_land, fpdem[i][0], 0.)
+            mean_sig0 += np.where(labels_combined_list[i] == label_land, fpdem[i][3], 0.)
+            mean_coh += np.where(labels_combined_list[i] == label_land, fpdem[i][5], 0.)
+            mean_coh_th += np.where(labels_combined_list[i] == label_land, fpdem[i][8], 0.)
 
             # Sum of labels
-            count += np.where(labels_combined_list_filter[i] == label_land, 1., 0.)
-            print('Maximum of count: ', np.max(count))
-
-            # Plot labels
-            plt.figure()
-            plt.title(int(fpdem_filter[i][7]))
-            plt.imshow(np.where(labels_combined_list_filter[i] == label_land, 1., 0.))
-            plt.colorbar()
-            plt.show()
+            count += np.where(labels_combined_list[i] == label_land, 1., 0.)
+            # print('Maximum of count: ', np.max(count))
 
     mean_dem = mean_dem / count
     mean_sig0 = mean_sig0 / count
@@ -399,6 +399,15 @@ def get_mean_dem(fpdem_filter, labels_combined_list_filter, bad_date):
 
 
 def write_mrf_fpdem_file(output_file, x, y, out_image, epsg):
+    '''
+    Write the raster with the MRF method's results
+
+    :param output_file: Name of the output file
+    :param x: longitude
+    :param y: latitude
+    :param out_image: elevation
+    :param epsg: EPSG value
+    '''
 
     ds = xr.Dataset(
         {
@@ -432,7 +441,7 @@ def write_mrf_fpdem_file(output_file, x, y, out_image, epsg):
     # Add necessary attributes
     ds["mean_dem"].attrs["units"] = "m"
     ds["mean_dem"].attrs["long_name"] = "Mean Digital Elevation Model"
-    ds["mean_dem"].attrs["standard_name"] = "height_above_mean_sea_level"
+    ds["mean_dem"].attrs["standard_name"] = "height_above_mean_water_level"
     ds["mean_dem"].attrs["grid_mapping"] = 'crs'
 
     ds["latitude"].attrs["units"] = "degrees_north"

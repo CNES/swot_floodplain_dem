@@ -133,10 +133,6 @@ def pre_processing_pixc(pixc_reader, cross_track_min, threshold, sig0_qual):
     water = extract_contiguous_water_points(water, pixc_reader.range_size, pixc_reader.azimuth_size,
                                             threshold=threshold)
 
-    # Select only points with a good sig0_qual
-    if sig0_qual == 'yes':
-        water = water.loc[(water.sig0_qual == 0)]
-
     return water, min_range_indices_to_remove
 
 #
@@ -244,9 +240,9 @@ def remove_borders(data: gpd.GeoDataFrame, range_min: int, range_max: int,
     :rtype: GeoPandas Dataframe
     """
     data = data.loc[data.range_index > range_min]
-    data = data.loc[data.azimuth_index > azimuth_min]
+    data = data.loc[data.azimuth_index > azimuth_min+1]
     data = data.loc[data.range_index < range_max]
-    data = data.loc[data.azimuth_index < azimuth_max]
+    data = data.loc[data.azimuth_index < azimuth_max-1]
 
     for i in range(azimuth_max):
         data = data.loc[np.logical_or((data['azimuth_index'] != i),
@@ -254,7 +250,7 @@ def remove_borders(data: gpd.GeoDataFrame, range_min: int, range_max: int,
 
     return data
 
-def filter_data_based_on_quality_flag(water, classif_qual, geoloc_qual):
+def filter_data_based_on_quality_flag(water, classif_qual, geoloc_qual, sig_qual):
     """
     :param water: DataFrame with PIXC points info
     :param classif_qual: integer value (bitwise) of the maximum classification quality wanted for data
@@ -265,6 +261,7 @@ def filter_data_based_on_quality_flag(water, classif_qual, geoloc_qual):
 
     water = water[water.classification_qual < classif_qual]
     water = water[water.geolocation_qual < geoloc_qual]
+    water = water[water.sig0_qual < sig_qual]
 
     return water
 

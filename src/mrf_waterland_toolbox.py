@@ -1,5 +1,5 @@
 """
-SWOT Sea Ice Classification Toolbox.
+SWOT Water Land Classification Toolbox.
 
 This module provides tools for:
 1. Data Loading: Fetching SWOT L2/L3 products from S3 zcollections.
@@ -59,7 +59,7 @@ def load_data(path_l3: str, cycle: int, pass_number: int, side: str,
         'cycle_number', 'pass_number', 'time', 'longitude', 'latitude', 
         'latitude_nadir', 'cvl_cross_track_distance', 
         'sig0_karin_2', 'duacs_ssha_karin_2_calibrated', 
-        'duacs_sea_ice_classification', 'ancillary_surface_classification_flag', 'cvl_distance_to_coast'
+        'duacs_water_land_classification', 'ancillary_surface_classification_flag', 'cvl_distance_to_coast'
     ]
 
     # Open collections
@@ -114,7 +114,7 @@ def clean_data(sig0_db: np.ndarray, ssh: np.ndarray, surftype:np.array) -> Tuple
     sig0_db : np.ndarray
         Sigma0 backscatter in dB.
     ssh : np.ndarray
-        Sea Surface Height anomaly.
+        Water Surface Height anomaly.
 
     Returns
     -------
@@ -192,7 +192,7 @@ def clean_abnormal_lines(image, n_std=3.0, window_size=10, max_iters=10):
 
 def estimate_large_scale_ocean(ssh:  np.ndarray, sig0: np.ndarray, xtrack: np.ndarray, window_size: np.int32) -> np.ndarray:
     """
-    Estimates the large-scale sea surface 
+    Estimates the large-scale water surface
     """
     # 1. Calcul des médianes (déjà dans ton code)
     medians_all = np.nanmedian(ssh, axis=1)
@@ -270,15 +270,15 @@ def estimate_large_scale_ocean(ssh:  np.ndarray, sig0: np.ndarray, xtrack: np.nd
     return medians_interp_final_smooth
 
 
-def estimate_large_scale_ice(ssh: np.ndarray, sig0: np.ndarray, xtrack: np.ndarray, window_size: np.int32) -> np.ndarray:
+def estimate_large_scale_land(ssh: np.ndarray, sig0: np.ndarray, xtrack: np.ndarray, window_size: np.int32) -> np.ndarray:
     """
-    Estimates the large-scale sea surface 
+    Estimates the large-scale water surface
     """
     # 1. Calcul des médianes (déjà dans ton code)
     medians_all = np.nanmedian(ssh, axis=1)
 
-    #Filtre ice
-    mask_ice = (
+    # Filtre land
+    mask_land = (
         (sig0 <= 5)
         & (sig0 >=0)
         & (~np.isnan(ssh))
@@ -288,23 +288,23 @@ def estimate_large_scale_ice(ssh: np.ndarray, sig0: np.ndarray, xtrack: np.ndarr
     )
 
     rows, cols = ssh.shape
-    medians_ice = np.full(rows, np. nan)
+    medians_land = np.full(rows, np. nan)
     for i in range(rows):
-        selected = ssh[i, mask_ice[i, :]]
+        selected = ssh[i, mask_land[i, :]]
         if len(selected) > 0:
-            medians_ice[i] = np. nanmedian(selected)
-    medians_ice = median_filter(medians_ice, size=window_size, mode='nearest')
+            medians_land[i] = np. nanmedian(selected)
+    medians_land = median_filter(medians_land, size=window_size, mode='nearest')
 
     # 2. Interpolation forward
-    medians_interp_fwd = np.copy(medians_ice)
-    N = len(medians_ice)
+    medians_interp_fwd = np.copy(medians_land)
+    N = len(medians_land)
     for i in range(1, N):
         if np.isnan(medians_interp_fwd[i]) and not np.isnan(medians_interp_fwd[i-1]):
             delta = medians_all[i] - medians_all[i-1]
             medians_interp_fwd[i] = medians_interp_fwd[i-1] + delta
 
     # 3. Interpolation backward (appliqué sur l'inversé)
-    medians_interp_bwd = np. copy(medians_ice[::-1])
+    medians_interp_bwd = np. copy(medians_land[::-1])
     medians_all_inv = medians_all[::-1]
     for i in range(1, N):
         if np.isnan(medians_interp_bwd[i]) and not np.isnan(medians_interp_bwd[i-1]):
@@ -390,17 +390,17 @@ def fit_distribution(data: np.ndarray, law: str = 'gaussian') -> Optional[Dict]:
         try:
             k, loc, scale = exponnorm.fit(clean_data)
             return {'expon_k': k, 'expon_loc': loc, 'expon_scale': scale, 
-                    'mu_ice': loc, 'std_ice': scale} 
+                    'mu_land': loc, 'std_land': scale}
         except Exception:
             # Fallback to Gaussian if ExponNorm fit fails
             mu, std = norm.fit(clean_data)
             return {'expon_k': 0.1, 'expon_loc': mu, 'expon_scale': std, 
-                    'mu_ice': mu, 'std_ice': std}
+                    'mu_land': mu, 'std_land': std}
     return None
 
 
 def mrf_icm_fusion_final(sig0, ssh, p_sig0, p_ssh, beta=2.0, weight_ssh=2.0, 
-                         iterations=5, ice_law='gaussian'):
+                         iterations=5, land_law='gaussian'):
     """
     Perform Markov Random Field classification using Iterated Conditional Modes (ICM).
     Fuses information from both Sigma0 and SSH.
@@ -410,58 +410,58 @@ def mrf_icm_fusion_final(sig0, ssh, p_sig0, p_ssh, beta=2.0, weight_ssh=2.0,
     sig0, ssh : 2D arrays
         Input observables.
     p_sig0, p_ssh : dict
-        Distribution parameters for Ice/Water for each observable.
+        Distribution parameters for Land/Water for each observable.
     beta : float
         Smoothness parameter (Potts model). Higher = smoother regions.
     weight_ssh : float
         Relative weight of SSH term in the energy function.
     iterations : int
         Number of ICM iterations.
-    ice_law : str
-        'gaussian' or 'exponnorm' for SSH Ice distribution.
+    land_law : str
+        'gaussian' or 'exponnorm' for SSH Land distribution.
     
     Returns
     -------
     proba_water : 2D array
-        Probability map (0.0=Ice, 1.0=Water). NaNs where invalid.
+        Probability map (0.0=Land, 1.0=Water). NaNs where invalid.
     """
     # --- 1. Initialization (Log-Likelihoods) ---
     
     # Calculate P(Sig0 | Class) - Always Gaussian
-    p_s0_ice_args = {'mu': p_sig0['mu_ice'], 'std': p_sig0['std_ice']}
+    p_s0_land_args = {'mu': p_sig0['mu_land'], 'std': p_sig0['std_land']}
     p_s0_wat_args = {'mu': p_sig0['mu_water'], 'std': p_sig0['std_water']}
     
-    prob_s0_ice = get_pdf_proba(sig0, p_s0_ice_args, 'gaussian')
+    prob_s0_land = get_pdf_proba(sig0, p_s0_land_args, 'gaussian')
     prob_s0_wat = get_pdf_proba(sig0, p_s0_wat_args, 'gaussian')
 
     # Calculate P(SSH | Class)
     p_ssh_wat_args = {'mu': p_ssh['mu_water'], 'std': p_ssh['std_water']}
     prob_ssh_wat = get_pdf_proba(ssh, p_ssh_wat_args, 'gaussian')
     
-    # Ice depends on configuration
-    if ice_law == 'gaussian':
-        p_ssh_ice_args = {'mu': p_ssh['mu_ice'], 'std': p_ssh['std_ice']}
-        prob_ssh_ice = get_pdf_proba(ssh, p_ssh_ice_args, 'gaussian')
+    # Land depends on configuration
+    if land_law == 'gaussian':
+        p_ssh_land_args = {'mu': p_ssh['mu_land'], 'std': p_ssh['std_land']}
+        prob_ssh_land = get_pdf_proba(ssh, p_ssh_land_args, 'gaussian')
     else:
         # Use provided ExponNorm params directly
-        prob_ssh_ice = get_pdf_proba(ssh, p_ssh, 'exponnorm')
+        prob_ssh_land = get_pdf_proba(ssh, p_ssh, 'exponnorm')
 
     # Avoid log(0) errors
     epsilon = 1e-10
-    prob_s0_ice = np.clip(prob_s0_ice, epsilon, None)
+    prob_s0_land = np.clip(prob_s0_land, epsilon, None)
     prob_s0_wat = np.clip(prob_s0_wat, epsilon, None)
-    prob_ssh_ice = np.clip(prob_ssh_ice, epsilon, None)
+    prob_ssh_land = np.clip(prob_ssh_land, epsilon, None)
     prob_ssh_wat = np.clip(prob_ssh_wat, epsilon, None)
 
     # --- Data Energy Term (Negative Log Likelihood) ---
     # U_data(label) = - log(P(obs|label))
     # Combined Energy: U = U_s0 + (weight * U_ssh)
-    u_data_ice = -np.log(prob_s0_ice) - weight_ssh * np.log(prob_ssh_ice)
+    u_data_land = -np.log(prob_s0_land) - weight_ssh * np.log(prob_ssh_land)
     u_data_wat = -np.log(prob_s0_wat) - weight_ssh * np.log(prob_ssh_wat)
 
     # Initial Labeling (MAP estimate without smoothness) for ICM Initialization
-    labels = np.zeros_like(sig0, dtype=np.int8) # Default to 0 (Ice)
-    labels[u_data_wat < u_data_ice] = 1 # Set to 1 (Water) where energy is lower
+    labels = np.zeros_like(sig0, dtype=np.int8) # Default to 0 (Land)
+    labels[u_data_wat < u_data_land] = 1 # Set to 1 (Water) where energy is lower
     
     # Handle NaNs (invalid data)
     mask_valid = (~np.isnan(sig0)) & (~np.isnan(ssh))
@@ -487,16 +487,16 @@ def mrf_icm_fusion_final(sig0, ssh, p_sig0, p_ssh, beta=2.0, weight_ssh=2.0,
         # Cost is 'beta' if center pixel differs from neighbor.
         # U_smooth(0) = beta * count(neighbors==1)
         # U_smooth(1) = beta * count(neighbors==0) = beta * (4 - neighbors_1)
-        u_smooth_ice = beta * neighbors_1
+        u_smooth_land = beta * neighbors_1
         u_smooth_wat = beta * (4.0 - neighbors_1)
         
         # Total Energy = Data Term + Smoothness Term
-        total_e_ice = u_data_ice + u_smooth_ice
+        total_e_land = u_data_land + u_smooth_land
         total_e_wat = u_data_wat + u_smooth_wat
         
         # Update Labels
         new_labels = np.zeros_like(labels)
-        new_labels[total_e_wat < total_e_ice] = 1
+        new_labels[total_e_wat < total_e_land] = 1
         new_labels[~mask_valid] = -1
         
         # Convergence Check
@@ -507,21 +507,21 @@ def mrf_icm_fusion_final(sig0, ssh, p_sig0, p_ssh, beta=2.0, weight_ssh=2.0,
             
     # --- 3. Compute Final Probabilities ---
     # Calculate the probability of being Water based on the final energy state
-    # P(Water) = 1 / (1 + exp(E_wat - E_ice))
+    # P(Water) = 1 / (1 + exp(E_wat - E_land))
     
     # Re-calculate neighbor energies for the final converged label state
     valid_labels = np.where(labels == -1, 0, labels)
     neighbors_1 = convolve(valid_labels.astype(float), kernel, mode='constant', cval=0.0)
     
-    u_smooth_ice = beta * neighbors_1
+    u_smooth_land = beta * neighbors_1
     u_smooth_wat = beta * (4.0 - neighbors_1)
     
-    total_e_ice = u_data_ice + u_smooth_ice
+    total_e_land = u_data_land + u_smooth_land
     total_e_wat = u_data_wat + u_smooth_wat
     
     # Calculate Probability
     # Clip energy difference to avoid overflow in exp()
-    energy_diff = np.clip(total_e_wat - total_e_ice, -100, 100)
+    energy_diff = np.clip(total_e_wat - total_e_land, -100, 100)
     proba_water = 1.0 / (1.0 + np.exp(energy_diff))
     
     # Mask invalid pixels with NaN
@@ -531,7 +531,7 @@ def mrf_icm_fusion_final(sig0, ssh, p_sig0, p_ssh, beta=2.0, weight_ssh=2.0,
 
 
 def iterative_mrf_pipeline(sig0, ssh, p_sig0_init, p_ssh_init, 
-                           ice_law='gaussian', 
+                           land_law='gaussian',
                            max_iters=10, 
                            convergence_threshold=0.01, 
                            weight_ssh=1,
@@ -547,10 +547,10 @@ def iterative_mrf_pipeline(sig0, ssh, p_sig0_init, p_ssh_init,
     current_p_ssh = p_ssh_init.copy()
     
     history = []
-    prev_ice_ratio = -1.0
+    prev_land_ratio = -1.0
     
     if verbose:
-        print(f"=== START ITERATIVE PIPELINE (Ice Law: {ice_law}) ===")
+        print(f"=== START ITERATIVE PIPELINE (Land Law: {land_law}) ===")
     
     proba_map = None
 
@@ -558,46 +558,46 @@ def iterative_mrf_pipeline(sig0, ssh, p_sig0_init, p_ssh_init,
         # 1. E-STEP : MRF Classification (Returns Probability Map)
         proba_map = mrf_icm_fusion_final(sig0, ssh, current_p_sig0, current_p_ssh, 
                                          beta=10.0, weight_ssh=weight_ssh, iterations=5, 
-                                         ice_law=ice_law)
+                                         land_law=land_law)
         
         # Calculate Metrics using a 0.5 probability threshold
         n_pixels = np.sum(~np.isnan(proba_map))
         if n_pixels == 0: break
         
-        n_sea = np.sum(proba_map >= 0.5)
-        ice_ratio = n_sea / n_pixels
+        n_water = np.sum(proba_map >= 0.5)
+        land_ratio = n_water / n_pixels
         
         if verbose:
-            print(f"Iter {k+1}/{max_iters} | Ice Ratio: {ice_ratio:.2%}")
+            print(f"Iter {k+1}/{max_iters} | Land Ratio: {land_ratio:.2%}")
         
-        history.append(ice_ratio)
+        history.append(land_ratio)
         
         # Convergence Check
-        if abs(ice_ratio - prev_ice_ratio) < convergence_threshold:
+        if abs(land_ratio - prev_land_ratio) < convergence_threshold:
             if verbose: print(">>> CONVERGENCE REACHED <<<")
             break
-        prev_ice_ratio = ice_ratio
+        prev_land_ratio = land_ratio
         
         # 2. M-STEP : Parameter Update
         # Hard thresholding for parameter estimation (0.5 cut-off)
-        mask_ice = (proba_map < 0.5)
+        mask_land = (proba_map < 0.5)
         mask_water = (proba_map >= 0.5)
         
         # A. Update Sig0 Parameters (Always Gaussian)
-        s0_ice_data = sig0[mask_ice & ~np.isnan(sig0)]
+        s0_land_data = sig0[mask_land & ~np.isnan(sig0)]
         s0_wat_data = sig0[mask_water & ~np.isnan(sig0)]
         
-        fit_s0_i = fit_distribution(s0_ice_data, 'gaussian')
+        fit_s0_i = fit_distribution(s0_land_data, 'gaussian')
         fit_s0_w = fit_distribution(s0_wat_data, 'gaussian')
         
         if fit_s0_i and fit_s0_w:
             current_p_sig0.update({
-                'mu_ice': fit_s0_i['mu'], 'std_ice': fit_s0_i['std'],
+                'mu_land': fit_s0_i['mu'], 'std_land': fit_s0_i['std'],
                 'mu_water': fit_s0_w['mu'], 'std_water': fit_s0_w['std']
             })
             
         # B. Update SSH Parameters
-        ssh_ice_data = ssh[mask_ice & ~np.isnan(ssh)]
+        ssh_land_data = ssh[mask_land & ~np.isnan(ssh)]
         ssh_wat_data = ssh[mask_water & ~np.isnan(ssh)]
         
         # Water (Gaussian)
@@ -606,21 +606,21 @@ def iterative_mrf_pipeline(sig0, ssh, p_sig0_init, p_ssh_init,
             current_p_ssh['mu_water'] = fit_ssh_w['mu']
             current_p_ssh['std_water'] = fit_ssh_w['std']
         
-        # Ice (Configurable: Gaussian or ExponNorm)
-        fit_ssh_i = fit_distribution(ssh_ice_data, ice_law)
+        # Land (Configurable: Gaussian or ExponNorm)
+        fit_ssh_i = fit_distribution(ssh_land_data, land_law)
         
         if fit_ssh_i:
-            if ice_law == 'gaussian':
-                current_p_ssh.update({'mu_ice': fit_ssh_i['mu'], 
-                                      'std_ice': fit_ssh_i['std']})
-            elif ice_law == 'exponnorm':
+            if land_law == 'gaussian':
+                current_p_ssh.update({'mu_land': fit_ssh_i['mu'],
+                                      'std_land': fit_ssh_i['std']})
+            elif land_law == 'exponnorm':
                 current_p_ssh.update(fit_ssh_i) # Updates K, loc, scale
 
     return proba_map, current_p_sig0, current_p_ssh, history
 
 
 def run_tiled_mrf_pipeline(sig0, ssh, p_sig0_init, p_ssh_init, 
-                           ice_law, max_iters, convergence_threshold, weight_ssh,
+                           land_law, max_iters, convergence_threshold, weight_ssh,
                            pixel_res_m=250, 
                            tile_size_km=10, 
                            stride_km=None,
@@ -691,12 +691,12 @@ def run_tiled_mrf_pipeline(sig0, ssh, p_sig0_init, p_ssh_init,
                 # verbose=False suppresses inner loop prints
                 prob_tile, _, _, history = iterative_mrf_pipeline(
                     sig0_tile, ssh_tile, p_sig0_init, p_ssh_init, 
-                    ice_law, max_iters, convergence_threshold, weight_ssh,
+                    land_law, max_iters, convergence_threshold, weight_ssh,
                     verbose=False)
                 
                 # Update progress bar description with tile stats
-                final_ice = history[-1] if history else 0.0
-                pbar.set_postfix_str(f"Ice Ratio: {final_ice:.1%}")
+                final_land = history[-1] if history else 0.0
+                pbar.set_postfix_str(f"Land Ratio: {final_land:.1%}")
                 
                 # --- Weight Mask Generation ---
                 # Default weight is 1.0 everywhere
@@ -759,7 +759,7 @@ def fix_isolated_pixels(proba_map, threshold=0.5, min_neighbors=3, connectivity=
     proba_fixed : 2D array
         Probabilité après correction des isolés.
     labels_fixed : 2D array (int8)
-        Labels après correction (0=Ice, 1=Water, -1=NaN).
+        Labels après correction (0=Land, 1=Water, -1=NaN).
     """
     if connectivity == 4:
         kernel = np.array([[0,1,0],
@@ -777,14 +777,14 @@ def fix_isolated_pixels(proba_map, threshold=0.5, min_neighbors=3, connectivity=
     n_valid = convolve((labels >= 0).astype(float), kernel, mode='constant', cval=0.0)
 
     majority_water = n_water > (n_valid / 2)
-    majority_ice   = (~majority_water) & (n_valid > 0)
+    majority_land  = (~majority_water) & (n_valid > 0)
 
-    isolated_water = (labels == 1) & majority_ice   & (n_valid >= min_neighbors)
-    isolated_ice   = (labels == 0) & majority_water & (n_valid >= min_neighbors)
+    isolated_water = (labels == 1) & majority_land  & (n_valid >= min_neighbors)
+    isolated_land  = (labels == 0) & majority_water & (n_valid >= min_neighbors)
 
     labels_fixed = labels.copy()
     labels_fixed[isolated_water] = 0
-    labels_fixed[isolated_ice]   = 1
+    labels_fixed[isolated_land]  = 1
 
     # Moyenne des probabilités voisines pour les pixels corrigés
     neighbor_sum   = convolve(np.nan_to_num(proba_map, nan=0.0), kernel, mode='constant', cval=0.0)
@@ -796,7 +796,7 @@ def fix_isolated_pixels(proba_map, threshold=0.5, min_neighbors=3, connectivity=
     )
 
     proba_fixed = proba_map.copy()
-    to_update = isolated_water | isolated_ice
+    to_update = isolated_water | isolated_land
     proba_fixed[to_update] = neighbor_mean[to_update]
     proba_fixed[~valid] = np.nan
 
@@ -877,7 +877,7 @@ def classwise_smooth(field: np.ndarray, class_mask: np.ndarray, size: np.int32) 
 
     return out
 
-def compute_freeboard_and_ice_concentration_sliding_tiles(
+def compute_freeboard_and_land_concentration_sliding_tiles(
     ssh_raw: np.ndarray,
     proba_water: np.ndarray,      # probabilité d'être WATER (0–1), NaN invalide
     surftype: np.ndarray,         # 0 = océan/zone glace, autres = terre/invalide
@@ -885,7 +885,7 @@ def compute_freeboard_and_ice_concentration_sliding_tiles(
     pixel_res_m: float = 250.0,
     tile_size_km: float = 10.0,
     stride_km: float = 1.0,
-    min_points_per_class: int = 10,   # pour le freeboard (water & ice)
+    min_points_per_class: int = 10,   # pour le freeboard (water & land)
     min_valid_for_conc: int = 10,     # pour la concentration de glace
 ):
     """
@@ -893,17 +893,17 @@ def compute_freeboard_and_ice_concentration_sliding_tiles(
     en un seul parcours.
 
     Freeboard :
-        freeboard = median(ssh | ice) - median(ssh | water)
+        freeboard = median(ssh | land) - median(ssh | water)
         (requiert min_points_per_class points dans chaque classe)
 
-    Ice concentration :
-        ice_prob = 1 - proba_water
-        ice_conc = moyenne(ice_prob) sur les pixels valides (surftype==0)
+    Land concentration :
+        land_prob = 1 - proba_water
+        land_conc = moyenne(land_prob) sur les pixels valides (surftype==0)
 
     Returns
     -------
     freeboard_grid : (n_y, n_x) float
-    ice_conc_grid  : (n_y, n_x) float
+    land_conc_grid  : (n_y, n_x) float
     y_centers_lines : (n_y,) int
     x_centers_idx
     x_centers_m     : (n_x,) float
@@ -914,11 +914,11 @@ def compute_freeboard_and_ice_concentration_sliding_tiles(
 
     # Masquage terre et proba glace/eau
     proba_water_masked = np.where(surftype == 0, proba_water, np.nan)
-    ice_prob = 1.0 - proba_water_masked
+    land_prob = 1.0 - proba_water_masked
 
     # Masques binaires pour le freeboard (seuil 0.5, comme avant)
     water_mask_global = (proba_water_masked > 0.5) & ~np.isnan(proba_water_masked)
-    ice_mask_global   = (proba_water_masked <=  0.5) & ~np.isnan(proba_water_masked)
+    land_mask_global   = (proba_water_masked <=  0.5) & ~np.isnan(proba_water_masked)
 
     # Axe cross-track 1D
     xtrack_1d_m = np.nanmedian(xtrack_2d_m, axis=0)
@@ -936,7 +936,7 @@ def compute_freeboard_and_ice_concentration_sliding_tiles(
     n_x = len(x_starts)
 
     freeboard = np.full((n_y, n_x), np.nan, dtype=float)
-    ice_conc  = np.full((n_y, n_x), np.nan, dtype=float)
+    land_conc  = np.full((n_y, n_x), np.nan, dtype=float)
 
     y_centers_lines = np.array([y0 + tile_px // 2 for y0 in y_starts], dtype=int)
     x_centers_idx   = np.array([x0 + tile_px // 2 for x0 in x_starts], dtype=int)
@@ -950,29 +950,29 @@ def compute_freeboard_and_ice_concentration_sliding_tiles(
             # Sous-ensembles
             tile_ssh      = ssh_raw[y0:y1, x0:x1]
             tile_water_m  = water_mask_global[y0:y1, x0:x1] & ~np.isnan(tile_ssh)
-            tile_ice_m    = ice_mask_global[y0:y1,   x0:x1] & ~np.isnan(tile_ssh)
-            tile_ice_prob = ice_prob[y0:y1, x0:x1]
+            tile_land_m    = land_mask_global[y0:y1,   x0:x1] & ~np.isnan(tile_ssh)
+            tile_land_prob = land_prob[y0:y1, x0:x1]
 
             # Freeboard (nécessite assez de points dans chaque classe)
-            if tile_water_m.sum() >= min_points_per_class and tile_ice_m.sum() >= min_points_per_class:
+            if tile_water_m.sum() >= min_points_per_class and tile_land_m.sum() >= min_points_per_class:
                 med_w = np.nanmedian(tile_ssh[tile_water_m])
-                med_i = np.nanmedian(tile_ssh[tile_ice_m])
+                med_i = np.nanmedian(tile_ssh[tile_land_m])
                 freeboard[iy, ix] = med_i - med_w
 
-            # Ice concentration (moyenne des probas après seuillage à 0.1)
-            valid_conc_mask = ~np.isnan(tile_ice_prob)
+            # Land concentration (moyenne des probas après seuillage à 0.1)
+            valid_conc_mask = ~np.isnan(tile_land_prob)
             if valid_conc_mask.sum() >= min_valid_for_conc:
                 # On extrait les probas valides
-                probas = tile_ice_prob[valid_conc_mask]
+                probas = tile_land_prob[valid_conc_mask]
 
                 # On applique votre nouveau seuil :
                 # Si > 0.1 alors 1 (Glace), sinon 0 (Eau)
-                ice_binarized = np.where(probas > 0.1, 1.0, 0.0)
+                land_binarized = np.where(probas > 0.1, 1.0, 0.0)
 
                 # On fait la moyenne de ces valeurs 0 et 1
-                ice_conc[iy, ix] = np.nanmean(ice_binarized)
+                land_conc[iy, ix] = np.nanmean(land_binarized)
 
-    return freeboard, ice_conc, y_centers_lines, x_centers_idx, x_centers_m
+    return freeboard, land_conc, y_centers_lines, x_centers_idx, x_centers_m
 
 # ##
 # PLOT FUNCTIONS
@@ -1225,9 +1225,9 @@ def plot_map(param, Xc, Yc, sigma, min_map, max_map):
 
     ax.set_aspect("equal")
     cb = fig.colorbar(im, ax=ax, pad=0.02, shrink=0.8)
-    cb.set_label("Ice concentration [0–1]")
+    cb.set_label("Land concentration [0–1]")
 
-    ax.set_title("Ice concentration")
+    ax.set_title("Land concentration")
     plt.tight_layout()
     ZOOM_SCALE = 1.2  # facteur de zoom par cran ( >1 )
 
@@ -1295,7 +1295,7 @@ def plot_map_and_save(param, Xc, Yc, sigma, min_map, max_map, title, output_file
     
     # Colorbar
     cb = fig.colorbar(im, ax=ax, pad=0.02, shrink=0.8)
-    cb.set_label("Ice concentration [0–1]")
+    cb.set_label("Land concentration [0–1]")
 
     # Titre
     ax.set_title(title, fontsize=14, fontweight='bold')

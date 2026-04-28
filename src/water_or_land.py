@@ -98,6 +98,23 @@ def compute_label_and_remove_small_object(water, range_size, azimuth_size, pekel
 
     # Remove all points which are isolated
     water_tab = morphology.remove_small_objects(water_tab, min_size=min_size, connectivity=connectivity)
+
+    # Plot all water bodies
+    if plot[0:3] == 'yes':
+        lon_tab = np.where(water_tab == 1, longitude_tab, 0)
+        lat_tab = np.where(water_tab == 1, latitude_tab, 0)
+        fig = plt.figure(figsize=(7, 7))
+        ax = fig.add_subplot()
+        ax.scatter(lon_tab, lat_tab, s=1)
+        ax.set_xlim(extent[0], extent[1])
+        ax.set_ylim(extent[2], extent[3])
+        ax.set_title(f"All points after filtering of isolated points")
+        if plot == 'yes2':
+            plt.show()
+        else:
+            fig.savefig(f'{outpath}/cycle{cycle}/plot_all_pts_after_classif_filtering_and_morphology.png')
+            plt.close(fig)
+
     # Label all clusters of points to obtain the water bodies
     label_tab, count = scipy.ndimage.label(water_tab)
 
@@ -173,7 +190,7 @@ def remove_outliers_in_height(h, sig0):
 
 def get_h_sig0_and_filter(water):
     """
-    Extract h and sig0 from DatafRame and filter outliers
+    Extract h and sig0 from DataFrame and filter outliers
 
     :param water: DataFrame of PIXC points info
     :return: h, sig0

@@ -105,13 +105,11 @@ pekel filtering end = yes # yes or no
 pekel filtering value = 99 # Threshold occurrence value
 
 # Quality flags for filtering :
-# At the beginning of the bathy extraction, 
-# Filter sig0_qual: 'no' = do not filter; 'yes' = keep only good points (i.e., sig0_qual=0)
-sig0_qual = yes # yes or no
 # At the end of the bathy extraction,
 # Select the bit threshold for each quality flag, all FPDEM/PIXC points with a bit higher than the chosen value are filtered out
 classification_qual = 33554432
 geolocation_qual = 33554432
+sig0_qual = 524288
 
 # Isolated points filtering :
 # Maximum distance in degrees for two points to be considered neighbors
