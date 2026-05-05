@@ -433,6 +433,7 @@ class Floodplain(object):
             # Add flags columns + time and elevation
             fpdem_land_pixel[['classification_qual',
                               'geolocation_qual',
+                              'sig0_qual',
                               'time',
                               'elevation']] = fpdem_land_pixel.apply(find_attributes, args=(water, 1,), axis=1)
 

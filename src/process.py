@@ -217,6 +217,7 @@ def find_attributes(row, water, flag):
     if flag == 1:
         return pd.Series([row_water['classification_qual'].values[0],
                           row_water['geolocation_qual'].values[0],
+                          row_water['sig0_qual'].values[0],
                           row_water['time'].values[0],
                           row_water['elevation'].values[0]])
     elif flag == 2:
