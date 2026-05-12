@@ -127,7 +127,7 @@ class Floodplain(object):
             # Quality flags
             self.classif_qual = int(param.getValue("classification_qual").split(" ")[0])
             self.geoloc_qual = int(param.getValue("geolocation_qual").split(" ")[0])
-            self.sig_qual = param.getValue("sig0_qual").split(" ")[0]
+            self.sig_qual = int(param.getValue("sig0_qual").split(" ")[0])
             # Parameters for removing isolated points
             self.d_ngbr = float(param.getValue("distance to neighbors").split(" ")[0])
             self.n_ngbr = int(param.getValue("number of neighbors").split(" ")[0])
@@ -229,10 +229,6 @@ class Floodplain(object):
                 self.polygon_mask = get_poly_sword_from_reach(self.df_reach_data, buffer_size=self.mask_buffer)
             else:
                 self.polygon_mask = None
-
-            # Creating output directory
-            if not os.path.isdir(self.output_path):
-                os.mkdir(self.output_path)
 
             logging.info(f"{len(self.inputvecfiles)} PIXC/PIXCVec couple files will be processed")
 

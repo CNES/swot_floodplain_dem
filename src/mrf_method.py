@@ -37,7 +37,7 @@ import mrf_waterland_toolbox as toolbox
 
 
 def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', resolution=0.000277777, margin=[0., 0.]):
-    '''
+    """
     Produce the reference raster grid
 
     :param refdem_grid: Filename of  the reference grid or None
@@ -46,7 +46,7 @@ def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', resolution=0.000
     :param resolution:
     :param margin:
     :return:
-    '''
+    """
 
     if refdem_grid:
         ref_dem = xr.open_dataset(path_ref_dem)
@@ -74,21 +74,56 @@ def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', resolution=0.000
                 "elevation": (("latitude", "longitude"), mean_dem)
             },
             coords={
-                "latitude": (("latitude"), latitude_ref_dem),
-                "longitude": (("longitude"), longitude_ref_dem),
+                "latitude": ("latitude", latitude_ref_dem),
+                "longitude": ("longitude", longitude_ref_dem),
+            }, )
+
+    return ref_dem, latitude_ref_dem, longitude_ref_dem
+
+def get_grid_lat_lon_ref2(refdem_grid, path_ref_dem='', lonlat_extrema=[], resolution=0.000277777):
+    """
+    Produce the reference raster grid
+
+    :param refdem_grid: Filename of  the reference grid or None
+    :param path_ref_dem: Path to reference grid if file given
+    :param lonlat_extrema: Minimum and maximum of longitude and latitude
+    :param resolution: resolution in degrees
+    :return:
+    """
+
+    if refdem_grid:
+        ref_dem = xr.open_dataset(path_ref_dem)
+        latitude_ref_dem = ref_dem.latitude.values
+        longitude_ref_dem = ref_dem.longitude.values
+
+    else:
+        longitude_ref_dem = np.arange(lonlat_extrema[0], lonlat_extrema[1],  resolution)
+        latitude_ref_dem = np.arange(lonlat_extrema[2], lonlat_extrema[3], resolution)
+
+        mean_dem = np.zeros([len(latitude_ref_dem), len(longitude_ref_dem)])
+
+        ref_dem = xr.Dataset(
+            {
+                "elevation": (("latitude", "longitude"), mean_dem)
+            },
+            coords={
+                "latitude": ("latitude", latitude_ref_dem),
+                "longitude": ("longitude", longitude_ref_dem),
             }, )
 
     return ref_dem, latitude_ref_dem, longitude_ref_dem
 
 
 def extract_params_from_pixc(file, root, ref_dem):
-    '''
+    """
+    Extract all interesting parameters, like h and sig0, from the PIXC file
 
     :param file: PIXC filename
     :param root: path to PIXC file
     :param ref_dem: reference grid for rasterization of PIXC
     :return: rasterized height, sig0...
-    '''
+    """
+
     date = file.split("_")[7][0:8]
 
     grid_h = xr.DataArray(
@@ -134,8 +169,7 @@ def extract_params_from_pixc(file, root, ref_dem):
                                points['load_tide_got'] - points['load_tide_fes'] -
                                points['solid_earth_tide'] - points['geoid'])
         points['diff'] = (points['pole_tide'] + points['load_tide_got'] + points['load_tide_fes'] +
-                               points['solid_earth_tide'] + points['geoid'])
-        print(points['diff'].mean())
+                          points['solid_earth_tide'] + points['geoid'])
 
         points_classif = points.classification.values
         ind_classif = np.where(points_classif > 2)
@@ -146,10 +180,10 @@ def extract_params_from_pixc(file, root, ref_dem):
         points_elevation = points.elevation.values[ind_classif]
         points_sig0 = points.sig0.values[ind_classif]
 
-        points_coh = (np.abs((points.interferogram.values[ind_classif][:, 0]
-                              + 1j * points.interferogram.values[ind_classif][:, 1]) ** 2)
-                      / np.sqrt(
-                    (points.power_minus_y.values[ind_classif][:] ** 2 * points.power_plus_y.values[ind_classif][:] ** 2)))
+        points_coh = (np.abs((points.interferogram.values[ind_classif][:, 0] +
+                              1j * points.interferogram.values[ind_classif][:, 1]) ** 2) /
+                      np.sqrt((points.power_minus_y.values[ind_classif][:] ** 2 *
+                               points.power_plus_y.values[ind_classif][:] ** 2)))
         points_snr = ((points.power_plus_y.values[ind_classif] - np.nanmean(noise.noise_plus_y.values))
                       / np.nanmean(noise.noise_plus_y.values))
         points_coh_th_noise = points_snr / (points_snr + 1)
@@ -166,7 +200,9 @@ def extract_params_from_pixc(file, root, ref_dem):
     rows = indices // (ref_dem.sizes['longitude'])
     cols = indices % (ref_dem.sizes['longitude'])
 
-    mask = (rows < ref_dem.sizes['latitude']) & (cols < ref_dem.sizes['longitude']) & (10 * np.log10(points_sig0) > -20)
+    mask = ((rows < ref_dem.sizes['latitude']) &
+            (cols < ref_dem.sizes['longitude']) &
+            (10 * np.log10(points_sig0) > -20))
 
     grid_inc.data[rows[mask], cols[mask]] += points_inc[mask]
     grid_h.data[rows[mask], cols[mask]] += points_elevation[mask]
@@ -226,7 +262,7 @@ def plot_var_and_zoom(var, var_name, cmap=None, vmin=None, vmax=None, zoom=None)
         fig.colorbar(im0, ax=axes[0], cax=cax0)
 
         cax1 = make_axes_locatable(axes[1]).append_axes("right", size="5%", pad=0.05)
-        axes[1].set_title(f"{var_name} - zoom")
+        axes[1].set_title(f"{var_name} -- zoom")
         im1 = axes[1].imshow(var[zoom], cmap=cmap, vmin=vmin, vmax=vmax)
         fig.colorbar(im1, ax=axes[1], cax=cax1)
     else:
@@ -238,15 +274,15 @@ def plot_var_and_zoom(var, var_name, cmap=None, vmin=None, vmax=None, zoom=None)
 
 
 def apply_mrf_method(fpdem,
-                     p_sig0_init, p_ssh_init, land_law, max_iters, convergence, weight_ssh,
+                     p_sig0_init, p_h_init, land_law, max_iters, convergence, weight_ssh,
                      pixel_res_m, tile_size_km, stride_km, border_exclude_km):
-    '''
+    """
     Use mrf_waterland_toolbox script to apply MRF method and
     retrieve pixels where there is land and water labellized as 0 and 1
 
     :param fpdem: list of parameters extracted from PIXC
     :param p_sig0_init: sig0 initial parameters
-    :param p_ssh_init: height initial parameters
+    :param p_h_init: height initial parameters
     :param land_law: 'gaussian' or 'exponnorm' for SSH Land distribution
     :param max_iters: maximum iterations to prevent infinite loops
     :param convergence: convergence parameter
@@ -257,7 +293,7 @@ def apply_mrf_method(fpdem,
     :param border_exclude_km:
     :return: height, sig0, probability maps and water/land labels
              for initial MRF run and run with adjusted parameters
-    '''
+    """
 
     height_cycle_0 = fpdem[1].data[:, :]
     sig0_cycle_0 = 10 * np.log10(fpdem[4].data[:, :])
@@ -275,7 +311,7 @@ def apply_mrf_method(fpdem,
 
     proba_map = toolbox.run_tiled_mrf_pipeline(
         sig0_cycle_0, height_cycle_0,
-        p_sig0_init, p_ssh_init,
+        p_sig0_init, p_h_init,
         land_law=land_law,
         max_iters=max_iters,
         convergence_threshold=convergence,
@@ -286,7 +322,10 @@ def apply_mrf_method(fpdem,
         border_exclude_km=border_exclude_km
     )
 
-    proba_smooth, labels_smooth = toolbox.fix_isolated_pixels(proba_map, threshold=0.5, min_neighbors=3, connectivity=8)
+    proba_smooth, labels_smooth = toolbox.fix_isolated_pixels(proba_map,
+                                                              threshold=0.5,
+                                                              min_neighbors=3,
+                                                              connectivity=8)
 
     proba_smooth_0 = np.where(fpdem[0].data[:, :] == 0, np.nan, proba_smooth)
     labels_smooth_0 = np.where(fpdem[0].data[:, :] == 0, np.nan, labels_smooth)
@@ -300,7 +339,7 @@ def apply_mrf_method(fpdem,
         'std_water': np.nanstd(sig0_cycle_0[np.where(labels_smooth_0 == 1)])
     }
 
-    p_ssh_init = {
+    p_h_init = {
         'mu_land': np.nanmean(height_cycle_0[np.where(labels_smooth_0 == 0)]),
         'std_land': np.nanstd(height_cycle_0[np.where(labels_smooth_0 == 0)]),
         'mu_water': np.nanmean(height_cycle_0[np.where(labels_smooth_0 == 1)]),
@@ -309,11 +348,11 @@ def apply_mrf_method(fpdem,
     }
 
     logging.info('New sig0 parameters values: ', p_sig0_init)
-    logging.info('New height parameters values: ', p_ssh_init)
+    logging.info('New height parameters values: ', p_h_init)
 
     proba_map = toolbox.run_tiled_mrf_pipeline(
         sig0_cycle_0, height_cycle_0,
-        p_sig0_init, p_ssh_init,
+        p_sig0_init, p_h_init,
         land_law=land_law,
         max_iters=max_iters,
         convergence_threshold=convergence,
@@ -331,8 +370,9 @@ def apply_mrf_method(fpdem,
 
     return height_cycle_0, sig0_cycle_0, proba_smooth_0, labels_smooth_0, proba_smooth_h, labels_smooth_h
 
+
 def get_labels(fpdem, idate, proba_map_list, threshold_with_height, threshold_without_height):
-    '''
+    """
     Extract the water and land labels for each pixel
 
     :param fpdem: list of parameters extracted from PIXC
@@ -341,7 +381,7 @@ def get_labels(fpdem, idate, proba_map_list, threshold_with_height, threshold_wi
     :param threshold_with_height:
     :param threshold_without_height:
     :return: water and land labels array
-    '''
+    """
 
     proba_smooth = proba_map_list[idate][0]
     proba_smooth_with_height = proba_map_list[idate][2]
@@ -354,15 +394,16 @@ def get_labels(fpdem, idate, proba_map_list, threshold_with_height, threshold_wi
 
     return labels_combined
 
-def get_mean_dem(fpdem, labels_combined_list, bad_dates):
-    '''
+
+def get_mean_dem(fpdem, labels_combined_list, baddates=[]):
+    """
     Calculate the mean height and sig0
 
     :param fpdem:
     :param labels_combined_list:
-    :param bad_dates:
+    :param baddates:
     :return: Merged height, sig0 and count of water label
-    '''
+    """
 
     mean_dem = np.zeros_like(fpdem[0][0], dtype=float)
     mean_sig0 = np.zeros_like(fpdem[0][0], dtype=float)
@@ -373,8 +414,7 @@ def get_mean_dem(fpdem, labels_combined_list, bad_dates):
     label_land = 0.
 
     for i in range(len(fpdem)):
-        if int(fpdem[i][7]) not in bad_dates:
-            # ind = np.where(labels_combined_list[i] == 0)
+        if int(fpdem[i][7]) not in baddates:
 
             mean_dem += np.where(labels_combined_list[i] == label_land, fpdem[i][0], 0.)
             mean_sig0 += np.where(labels_combined_list[i] == label_land, fpdem[i][3], 0.)
@@ -399,7 +439,7 @@ def get_mean_dem(fpdem, labels_combined_list, bad_dates):
 
 
 def write_mrf_fpdem_file(output_file, x, y, out_image, epsg):
-    '''
+    """
     Write the raster with the MRF method's results
 
     :param output_file: Name of the output file
@@ -407,7 +447,7 @@ def write_mrf_fpdem_file(output_file, x, y, out_image, epsg):
     :param y: latitude
     :param out_image: elevation
     :param epsg: EPSG value
-    '''
+    """
 
     ds = xr.Dataset(
         {
