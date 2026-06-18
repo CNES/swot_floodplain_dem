@@ -61,6 +61,7 @@ def remove_near_range_pixels(water, azimuth_max, cross_track_min=5000):
                 min_range_indices_to_remove[i] = min_after_filtering
         except:
             pass
+
     return water_fil, min_range_indices_to_remove
 
 def extract_contiguous_water_points(water: gpd.GeoDataFrame,
@@ -107,16 +108,13 @@ def extract_contiguous_water_points(water: gpd.GeoDataFrame,
     return water.loc[water['region'].isin(keep_regions)].copy()
 
 #
-def pre_processing_pixc(pixc_reader, cross_track_min, threshold, sig0_qual):
+def pre_processing_pixc(pixc_reader, cross_track_min, threshold):
     """
     Pre-processing/ filtering of the entire PIXC
 
     :param pixc_reader: DataFrame with PIXC info
     :param cross_track_min: minimum crosstrack value to remove
     :param threshold: minimum surface of points clusters to be kept
-    :param sig0_qual: value of sig0_qual (PIXC attribute) : 0 good, 1: bad
-    :param filtering_pekel_start: yes or no
-    :param pekel_0_100_poly: Pekel polygon of occurrences >0%
     :return: water, min_range_indices_to_remove
     """
     # Extract points

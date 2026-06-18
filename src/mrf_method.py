@@ -6,6 +6,7 @@ Apply the MRF (Markov Random Field) method to extract bathymetry
 import os
 import logging
 import numpy as np
+import mahotas as mh
 import xarray as xr
 from netCDF4 import Dataset
 from pyproj import CRS
@@ -15,25 +16,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import mrf_waterland_toolbox as toolbox
-
-
-# def meters_to_deg(step_m, latitude_deg):
-#     """
-#     Convert meters to degrees for lat/lon coordinates
-#
-#     :param step_m: Step inm meters
-#     :param latitude_deg: Latitude position
-#     :return: lat and lon in degrees
-#     """
-#     lat_rad = latitude_deg * np.pi / 180.
-#
-#     meters_per_deg_lat = 111_320
-#     meters_per_deg_lon = 111_320 * np.cos(lat_rad)
-#
-#     dlat = step_m / meters_per_deg_lat
-#     dlon = step_m / meters_per_deg_lon
-#
-#     return dlat, dlon
 
 
 def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', resolution=0.000277777, margin=[0., 0.]):
@@ -114,10 +96,11 @@ def get_grid_lat_lon_ref2(refdem_grid, path_ref_dem='', lonlat_extrema=[], resol
     return ref_dem, latitude_ref_dem, longitude_ref_dem
 
 
-def extract_params_from_pixc(file, root, ref_dem):
+def extract_params_from_pixc(file, root, ref_dem, min_crosstrack=0):
     """
     Extract all interesting parameters, like h and sig0, from the PIXC file
 
+    :param min_crosstrack:
     :param file: PIXC filename
     :param root: path to PIXC file
     :param ref_dem: reference grid for rasterization of PIXC
@@ -165,6 +148,12 @@ def extract_params_from_pixc(file, root, ref_dem):
     with xr.open_dataset(os.path.join(root, file), group="pixel_cloud") as points:
 
         noise = xr.open_dataset(os.path.join(root, file), group="noise")
+
+        try:
+            points = points.drop_dims('num_pixc_lines')
+        except:
+            points = points
+
         points['elevation'] = (points['height'] - points['pole_tide'] -
                                points['load_tide_got'] - points['load_tide_fes'] -
                                points['solid_earth_tide'] - points['geoid'])
@@ -172,7 +161,8 @@ def extract_params_from_pixc(file, root, ref_dem):
                           points['solid_earth_tide'] + points['geoid'])
 
         points_classif = points.classification.values
-        ind_classif = np.where(points_classif > 2)
+        points_crosstrack = points.cross_track.values
+        ind_classif = np.where((points_classif > 2) & (np.abs(points_crosstrack) > min_crosstrack))
 
         points_lon = points.longitude.values[ind_classif]
         points_lat = points.latitude.values[ind_classif]

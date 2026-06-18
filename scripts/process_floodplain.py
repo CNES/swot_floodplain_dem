@@ -232,6 +232,10 @@ class Floodplain(object):
 
             logging.info(f"{len(self.inputvecfiles)} PIXC/PIXCVec couple files will be processed")
 
+            # Creating output directory
+            if not os.path.isdir(self.output_path):
+                os.mkdir(self.output_path)
+
 
     # Start the bathy extraction either with multiprocessing or not
     def compute_fpdem_pointcloud_boundaries(self):
@@ -292,8 +296,7 @@ class Floodplain(object):
             pixc_reader = PixcReader(self.polygon_mask, pixc_file, vec_file)
 
             water, min_range_ind_to_remove = pre_processing_pixc(pixc_reader,
-                                                                 self.cross_track_min, self.threshold,
-                                                                 self.sig_qual)
+                                                                 self.cross_track_min, self.threshold)
 
             (label_tab, count, classification_tab,
              height_tab, sig0_tab,

@@ -7,10 +7,11 @@ Copyright (c) 2018, CNES
 
 import os
 import logging
+import argparse
+
+import my_rdf_file as my_rdf
 
 from names import MRF_RASTER_BASENAME, compute_name
-
-from process import pre_processing_pixc
 
 from mrf_method import (get_grid_lat_lon_ref, get_grid_lat_lon_ref2, extract_params_from_pixc, apply_mrf_method,
                         get_labels, get_mean_dem, write_mrf_fpdem_file)
@@ -108,6 +109,10 @@ class MRF_run(object):
             self.threshold_without_h = float(param.getValue("threshold without h").split(" ")[0])
             self.threshold_with_h = float(param.getValue("threshold with h").split(" ")[0])
 
+            # Creating output directory
+            if not os.path.isdir(self.output_path):
+                os.mkdir(self.output_path)
+
     def mrf_compute(self):
 
         # ref_dem, self.latitude_ref_dem, self.longitude_ref_dem = get_grid_lat_lon_ref(self.refdem_grid,
@@ -135,7 +140,9 @@ class MRF_run(object):
              grid_coh_interp,
              mask,
              date,
-             grid_coh_th_interp) = extract_params_from_pixc(file, root, ref_dem)
+             grid_coh_th_interp) = extract_params_from_pixc(file, root, ref_dem,
+                                                            min_crosstrack=self.cross_track_min,
+                                                            min_size=self.threshold)
 
             fpdem.append([grid_h, grid_h_interp, grid_inc, grid_sig0, grid_sig0_interp,
                           grid_coh_interp, mask, date, grid_coh_th_interp])
@@ -155,7 +162,7 @@ class MRF_run(object):
 
             proba_map_list.append([proba_smooth_0, labels_smooth_0, proba_smooth_h, labels_smooth_h])
 
-        # Combine the labels for each pixel to determine if it is either land or water
+        # Get the labels for each pixel to determine if it is either land (0) or water (1)
         labels_combined_list = []
         for i in range(len(fpdem)):
             labels_combined = get_labels(fpdem, i, proba_map_list,
@@ -169,3 +176,21 @@ class MRF_run(object):
     def mrf_raster(self):
         epsg = "4326"
         write_mrf_fpdem_file(self.output_file, self.longitude_ref_dem, self.latitude_ref_dem, self.mean_dem, epsg)
+
+
+# Main program
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description=
+                                     '''Compute MRF method bathymetry raster from multiple tiles of PIXC products.''')
+    parser.add_argument("parameter_file", help="parameter_file (*.rdf)")
+    args = parser.parse_args()
+
+    level = getattr(logging, "INFO")
+    logging.basicConfig(filename=None, format='%(asctime)s [%(levelname)s] %(message)s', level=level)
+
+    parameters = my_rdf.myRdfReader(args.parameter_file)
+    mrf = MRF_run(parameters)
+    mrf.mrf_compute()
+    mrf.mrf_raster()
+    logging.info('Calculation of MRF method was performed')
