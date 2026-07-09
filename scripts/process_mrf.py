@@ -141,8 +141,7 @@ class MRF_run(object):
              mask,
              date,
              grid_coh_th_interp) = extract_params_from_pixc(file, root, ref_dem,
-                                                            min_crosstrack=self.cross_track_min,
-                                                            min_size=self.threshold)
+                                                            min_crosstrack=self.cross_track_min)
 
             fpdem.append([grid_h, grid_h_interp, grid_inc, grid_sig0, grid_sig0_interp,
                           grid_coh_interp, mask, date, grid_coh_th_interp])
