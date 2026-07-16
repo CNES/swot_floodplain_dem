@@ -1,0 +1,265 @@
+# Choose the method
+# Choices : fpdem or mrf
+method to use = fpdem
+
+
+
+#########################
+### Common parameters ###
+#########################
+
+# Lat/lon extrema of the Area Of Interest
+latitude min = -15.41
+latitude max = -14.81
+longitude min = 22.6
+longitude max = 23.2
+
+# Path to PIXC list
+PIXC file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_Barotse/input/pixc/SWOT_L2_HR_PIXC_*.nc
+
+# Output directory
+output directory = /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/output
+
+# Output filename extensions
+tile name = 15S22E
+first date name = 20210111T184700
+last date name = 20241119T180313
+
+# Plot
+# Choices : no, yes1 (only for Python script), yes2 (for notebook)
+plot = yes1
+
+
+#
+# PIXC pre-processing
+#
+
+# Range value of the crosstrack minimum value wanted
+cross track min value = 10000.
+
+# Minimum surface of a water body kept for FPDEM method
+area threshold = 100000.
+
+
+#
+# Raster
+#
+
+# Choose between 'latlon' or 'utm' for the definition of the raster grid
+mode = latlon
+
+# The resolution is in degrees for latlon mode and meters for utm mode
+resolution = 0.000277777
+
+
+
+########################
+### FPDEM parameters ###
+########################
+
+# Path to PIXCVec list (does not have to exist)
+PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_Barotse/input/pixcvec/SWOT_L2_HR_PIXCVec_*.nc
+
+
+### Select fpdem model approach :
+ 
+# Bathtub ring method or a mix of bathtub and clustering and direct extraction of land
+# Choices : mixed or bathtub
+select_approach = mixed
+
+
+### Pekel info : 
+
+# Path and name of the Pekel occurrences file
+Pekel path = /work/datalake/static_aux/MASQUES/PEKEL/data2021/occurrence/occurrence.vrt
+
+
+### SWORD info : 
+
+# Path to SWORD database
+Sword path = /work/SWOT/swotdev/swotpub/BD/BD_rivers/SWORD_v17/shp
+
+# Paths and names of hydrobasins (level1 and level2) files
+hydrobasin nv1 file = /work/SWOT/swotdev/swotpub/BD/major_basins/HydroBASINS/level1/hybas_lev01_v1c.shp
+hydrobasin nv2 file = /work/SWOT/swotdev/swotpub/BD/major_basins/HydroBASINS/level2/hybas_lev02_v1c.shp
+
+# Swot science orbits and tiles path and filename
+swot tiles file = /work/SWOT/swotdev/swotdev/stephag/orbits/swot_science_hr_2.0s_4.0s_June2019-v3_swath_tile.shp
+
+
+
+#
+# Mask
+#
+
+# To filter points around a specific lake, river, 
+# or filter only points present in Pekel occurrences (1->100%; with a buffer if mask_buffer_size != 0)
+# 0 : no; 1 : yes (with PLD); 2 : yes (with Pekel); 3 : yes (with Sword)
+use mask = 0
+
+# Buffer in soil geometry (degrees) : Optional parameter -> only required if use mask >= 1
+mask buffer size = 0.02
+
+### PLD info:
+
+# Lake identity number : Optional parameter -> only required if use mask = 1
+lake id = 0
+
+# Path to PLD database : Optional parameter -> only required if use mask = 1
+PLD path = /work/SWOT/swotdev/swotpub/BD/BD_lakes/PLD/Nom/
+
+
+#
+# Clustering method params : performed on WATER_LAND labels (optional if select_approach=bathtub)
+#
+
+# Choices : zscore or isolation_forest
+clustering outlier filter method = isolation_forest
+
+# Choices : kmeans, birch, hdbscan_tsne or hdbscan_umap
+clustering method = kmeans
+
+# Once the clustering is performed, all water bodies will get their contour extracted;
+# Choose either the bathtub ring method (like it is already done for WATER labels) 
+# or the geopandas concave hull method (might be better for small water bodies)
+# Choices : bathtub or concavehull
+clustering water contour = concavehull
+
+
+#
+# Filtering
+#
+
+### Pekel filtering :
+
+# At the beginning of the bathy extraction, filtering out dark water points
+# All PIXC points within Pekel occurrences > {chosen value}% are kept
+pekel percent for Dark Water = 95
+
+# At the end of the bathy extraction, filter out all points within Pekel occurrences > {chosen value}%
+# Choices : yes or no
+pekel filtering end = yes
+
+# Threshold occurrence value
+pekel filtering value = 99
+
+
+### Quality flags filtering :
+
+# At the end of the bathy extraction, select the bit threshold for each quality flag
+# All FPDEM points with a bit higher than the chosen value are filtered out
+classification_qual = 33554432
+geolocation_qual = 33554432
+sig0_qual = 524288
+
+
+### Isolated points filtering :
+
+## Filtering happening before FPDEM process is applied,
+
+# Remove objects smaller than or equal to chosen size
+water body min size = 2000
+
+# Connectivity defining the neighborhood of a pixel to detect isolated pixels
+connectivity = 1
+
+## Filtering happening after FPDEM process is applied, once all PIXC results have been merged,
+
+# Maximum distance in degrees for two points to be considered neighbors
+distance to neighbors = 0.001
+
+# All points with less meighbors than the chosen value are filtered out
+number of neighbors = 10
+
+
+#
+# Extract bathy area / Obtain polygon for rasterisation
+#
+
+# Higher numbers will include fewer vertices in the hull
+concave hull ratio = 0.005
+
+
+#
+# Other parameters
+#
+
+# Threading option: choose "multiprocessing" if parallel run is wanted
+threading option = multiprocessing
+
+# Define the number of core processing units (Optional: if 'multiprocessing is chosen')
+number of cpu = 12
+
+
+
+######################
+### MRF parameters ###
+######################
+
+### Reference DEM :
+
+# Do you want to a reference DEM?
+# Choices : True or False
+refdem grid = False
+
+# If refdem grid = False, lat/lon extrema and resolution, at the beginning of this file, will be used
+# If refdem grid = True, provide the path and filename of the file to be used as reference DEM
+refdem file = /work/EXPERT_CENTER/mwec/data/aux_files/sad/production/RefDEM/SWOT_RefDEM_20000101T000000_21000101T000000_20220301T025755_v101/Nom/197/SWOT_RefDEM_Nom_197_174L_20000101T000000_21000101T000000_20220301T025755_v101.nc
+
+
+###
+
+pixel res in m = 30.
+tile size in km = 25
+border exclude in km = 2.5
+
+# If None, will be set to half the tile size
+stride in km = 10.
+
+# Height land distribution
+# Choices of land law : gaussian or exponnorm
+land law = gaussian
+
+# Relative weight of height term in the energy function
+weight h = 1.5
+
+# Maximum iterations to prevent infinite loops
+mrf max iterations = 50
+
+mrf convergence = 0.02
+
+
+### MRF distribution parameters for land/water, for sig0
+
+sig0 mu land = 7.
+sig0 std land = 3.5
+sig0 mu water = 10.
+sig0 std water = 2.5
+
+
+## MRF distribution parameters for land/water, for height
+
+h mu land = 0.25
+h std land = 1.
+h mu water = 0.
+h std water = 0.1
+
+## Probability density function (PDF) parameters : 
+# Optional -> only required if land_law=exponnorm
+
+# PDF rate = 1/k
+h expon k = 1.
+
+# exponnorm.pdf(y, K) / scale with y = (x - loc) / scale
+h expon loc = 0.1
+h expon scale = 0.05
+
+
+### All pixels with a water probability lower than threshold values won't be included.
+
+# Threshold for proba map obtained only with sig0
+threshold without h = 0.2
+
+# Threshold for proba map obtained with sig0 + height
+threshold with h = 0.2
+

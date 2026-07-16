@@ -127,7 +127,7 @@ class Floodplain(object):
             # Quality flags
             self.classif_qual = int(param.getValue("classification_qual").split(" ")[0])
             self.geoloc_qual = int(param.getValue("geolocation_qual").split(" ")[0])
-            self.sig0_qual = param.getValue("sig0_qual").split(" ")[0]
+            self.sig_qual = int(param.getValue("sig0_qual").split(" ")[0])
             # Parameters for removing isolated points
             self.d_ngbr = float(param.getValue("distance to neighbors").split(" ")[0])
             self.n_ngbr = int(param.getValue("number of neighbors").split(" ")[0])
@@ -230,11 +230,11 @@ class Floodplain(object):
             else:
                 self.polygon_mask = None
 
+            logging.info(f"{len(self.inputvecfiles)} PIXC/PIXCVec couple files will be processed")
+
             # Creating output directory
             if not os.path.isdir(self.output_path):
                 os.mkdir(self.output_path)
-
-            logging.info(f"{len(self.inputvecfiles)} PIXC/PIXCVec couple files will be processed")
 
 
     # Start the bathy extraction either with multiprocessing or not
@@ -296,17 +296,20 @@ class Floodplain(object):
             pixc_reader = PixcReader(self.polygon_mask, pixc_file, vec_file)
 
             water, min_range_ind_to_remove = pre_processing_pixc(pixc_reader,
-                                                                 self.cross_track_min, self.threshold,
-                                                                 self.sig0_qual)
+                                                                 self.cross_track_min, self.threshold)
 
-            label_tab, count, classification_tab, \
-                    height_tab, sig0_tab, \
-                    azimuth_index_tab, range_index_tab, \
-                    latitude_tab, longitude_tab = compute_label_and_remove_small_object(water,
-                                                                                        pixc_reader.range_size, pixc_reader.azimuth_size,
-                                                                                        self.pekel_X_100_poly,
-                                                                                        self.body_min_size, self.body_connectivity,
-                                                                                        plot=self.plot, outpath=self.output_path, cycle=cycle)
+            (label_tab, count, classification_tab,
+             height_tab, sig0_tab,
+             azimuth_index_tab, range_index_tab,
+             latitude_tab, longitude_tab) = compute_label_and_remove_small_object(water,
+                                                                                  pixc_reader.range_size,
+                                                                                  pixc_reader.azimuth_size,
+                                                                                  self.pekel_X_100_poly,
+                                                                                  self.body_min_size,
+                                                                                  self.body_connectivity,
+                                                                                  plot=self.plot,
+                                                                                  outpath=self.output_path,
+                                                                                  cycle=cycle)
             logging.info(f'Number of water bodies: {count}')
 
             fpdem_land_pixel = pd.DataFrame()
@@ -314,7 +317,8 @@ class Floodplain(object):
                 logging.info(f'Water body number {label} / {count}')
 
                 # Return water_extract (-> GeoDataFrame)
-                water_extract = compute_subwater_extract_from_label(water, label_tab, azimuth_index_tab, range_index_tab, label)
+                water_extract = compute_subwater_extract_from_label(water, label_tab,
+                                                                    azimuth_index_tab, range_index_tab, label)
                 logging.info(f'    Number of points in label: {len(water_extract)}')
                 if len(water_extract) == 0:
                     logging.warning('No points found in this water body!')
@@ -323,13 +327,15 @@ class Floodplain(object):
                 if self.approach == 'mixed':
                     water_extractCateg = water_extract[(water_extract.classification == 3) |
                                                        (water_extract.classification == 4)]
+                    water_extractCateg = water_extractCateg.loc[(water_extractCateg.sig0_qual == 0)]
                     if len(water_extractCateg) == 0:
                         logging.warning('No points of classification 3 or 4 found in this water body')
                         logging.warning('    so no categorization possible!')
                         continue
 
                     water_body_type, categ_params = find_body_category(water_extractCateg,
-                                                                       self.pekel_0_100_poly, self.poly_sword, plot=self.plot,
+                                                                       self.pekel_0_100_poly, self.poly_sword,
+                                                                       plot=self.plot,
                                                                        choices=['WATER', 'WATER_LAND', 'LAND'],
                                                                        cycle=cycle,
                                                                        label=label, output_path=self.output_path)
@@ -338,8 +344,10 @@ class Floodplain(object):
                     # Apply different method depending on body category
                     if water_body_type == "LAND":
                         fpdem_land_pixel = pd.concat([fpdem_land_pixel, water_extract[['longitude', 'latitude',
-                                                                                       'height', 'sig0', 'classification',
-                                                                                       'azimuth_index', 'range_index']]])
+                                                                                       'height', 'sig0',
+                                                                                       'classification',
+                                                                                       'azimuth_index',
+                                                                                       'range_index']]])
                     elif water_body_type == "WATER":
                         logging.info('Bathtub ring method is applied')
                         res_bathtub = self.compute_bathtub_method(water_extract)
@@ -348,7 +356,8 @@ class Floodplain(object):
                     elif water_body_type == "WATER_LAND":
                         logging.info('Clustering method is applied')
 
-                        # Over one cycle (selected or first one of the list) extract height to obtain range and azimuth extrema
+                        # Over one cycle (selected or first one of the list) extract height
+                        # to obtain range and azimuth extrema
                         l0, l1, c0, c1 = get_range_azimuth_extrema(water_extract, pixc_reader.range_size,
                                                                    pixc_reader.azimuth_size)
                         # Create 4D matrix with all variables used for clustering (h, sig0, lon, lat)
@@ -377,8 +386,9 @@ class Floodplain(object):
                             elif self.clustering_contour == 'concavehull':
                                 # Alternate contours extraction because bathtub returns weird contours
                                 # probably because not a lot of points present for some labels
-                                concave_hull = gpd.GeoSeries([MultiPoint(water_extract_water['geometry'].values)]).concave_hull(ratio=0.05,
-                                                                                                                                allow_holes=True)
+                                concave_hull = gpd.GeoSeries([
+                                                            MultiPoint(water_extract_water['geometry'].values)
+                                                            ]).concave_hull(ratio=0.05, allow_holes=True)
                                 list_coords = shapely.get_coordinates(concave_hull.exterior).tolist()
                                 res_bathtub = gpd.GeoDataFrame(geometry=[Point(i) for i in list_coords], crs=4326)
                                 res_bathtub['longitude'] = pd.Series(res_bathtub.geometry.get_coordinates().x.values)
@@ -412,20 +422,25 @@ class Floodplain(object):
 
             # Filter according to user defined lat-lon box
             try:
-                fpdem_land_pixel = fpdem_land_pixel.loc[(fpdem_land_pixel['longitude'] > self.lon_min) &
-                                                        (fpdem_land_pixel['longitude'] < self.lon_max) &
-                                                        (fpdem_land_pixel['latitude'] > self.lat_min) &
-                                                        (fpdem_land_pixel['latitude'] < self.lat_max)]
+                fpdem_land_pixel = fpdem_land_pixel.loc[(fpdem_land_pixel['longitude'] >= self.lon_min) &
+                                                        (fpdem_land_pixel['longitude'] <= self.lon_max) &
+                                                        (fpdem_land_pixel['latitude'] >= self.lat_min) &
+                                                        (fpdem_land_pixel['latitude'] <= self.lat_max)]
             except NameError:
                 logging.warning('self.lon_min, self.lon_max, self.lat_min and/or self.lat_max do not exist')
 
             # Add flags columns + time and elevation
-            fpdem_land_pixel[['classification_qual', 'geolocation_qual',
-                              'time', 'elevation']] = fpdem_land_pixel.apply(find_attributes, args=(water, 1,), axis=1)
+            fpdem_land_pixel[['classification_qual',
+                              'geolocation_qual',
+                              'sig0_qual',
+                              'time',
+                              'elevation']] = fpdem_land_pixel.apply(find_attributes, args=(water, 1,), axis=1)
 
             # Flag filtering
-            fpdem_land_pixel = filter_data_based_on_quality_flag(fpdem_land_pixel, self.classif_qual,
-                                                                 self.geoloc_qual)
+            fpdem_land_pixel = filter_data_based_on_quality_flag(fpdem_land_pixel,
+                                                                 self.classif_qual,
+                                                                 self.geoloc_qual,
+                                                                 self.sig_qual)
 
             # Get utm coordinates
             logging.info('Converting to UTM')

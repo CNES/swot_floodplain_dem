@@ -99,9 +99,9 @@ class PixcReader():
         # Drop Nan values
         self.data.dropna(inplace=True)
         # Longitude must be set between -180 and 180
-        self.data['longitude'] = self.data.apply(lambda row: row.longitude if row.longitude < 180.0 \
-                                                                            else row.longitude - 360.0,
-                                                 axis=1)
+        self.data['longitude'] = self.data.apply(
+            lambda row: row.longitude if row.longitude < 180.0 else row.longitude - 360.0,
+            axis=1)
         self.data[['range_index']] = self.data[['range_index']].astype(int)
         self.data[['azimuth_index']] = self.data[['azimuth_index']].astype(int)
          
@@ -136,6 +136,8 @@ class PixcReader():
         alt = np.sqrt(df_trj[['x']].values[0]**2 + df_trj[['y']].values[0]**2 + df_trj[['z']].values[0]**2)
         d_az_ground = d_az_trj * EARTH_RADIUS / alt
         self.along_track_sampling = d_az_ground
+
+        dnc.close()
 
     def get_data(self) -> gpd.GeoDataFrame:
         return self.data.copy()
@@ -286,7 +288,6 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
     """
     Write output raster netcdf file
 
-    :param zone_letter:
     :param filename: Name of the raster file
     :param mode: latlon or utm
     :param x: Array of x (longitude)
@@ -296,6 +297,8 @@ def write_raster_gridded(filename: str, mode: str, x: np.array, y: np.array,
     :param out_dist_mean_2d: Mean distance between neighbors
     :param qual_flag: Array of raster pixels' quality flag
     :param epsg: String with the EPSG number
+    :param zone_number: UTM zone number
+    :param zone_letter: UTM zone letter
     """
 
     logging.info('Writing FPDEM raster file')

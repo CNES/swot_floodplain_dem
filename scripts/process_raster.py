@@ -57,7 +57,7 @@ class FPDEM_Raster(object):
         else:
             self.input_file = input_file
 
-        if input_file is None:
+        if output_file is None:
             self.output_file = compute_name(self.output_directory, FPDEM_RASTER_BASENAME,
                                             param.getValue("tile name"),
                                             param.getValue("first date name"),
@@ -71,8 +71,15 @@ class FPDEM_Raster(object):
             self.mask = mask
 
         if param:
+            # AOI
+            self.lat_max = float(param.getValue("latitude max").split(" ")[0])
+            self.lon_max = float(param.getValue("longitude max").split(" ")[0])
+            self.lat_min = float(param.getValue("latitude min").split(" ")[0])
+            self.lon_min = float(param.getValue("longitude min").split(" ")[0])
+            # Raster parameters
             self.resolution = float(param.getValue("resolution").split(" ")[0])
             self.mode = param.getValue("mode").split(" ")[0]
+            # Plot
             self.plot = param.getValue("plot").split(" ")[0]
 
         self.epsg = 4326
@@ -137,10 +144,14 @@ class FPDEM_Raster(object):
             nx = abs(int((x0 - max(xyz_data[:, 0])) / self.resolution)) + 1
             ny = abs(int((y0 - max(xyz_data[:, 1])) / self.resolution)) + 1
         elif self.mode == 'latlon':
-            x0 = min(lonlat_data[:, 0])
-            y0 = min(lonlat_data[:, 1])
-            nx = abs(int((x0 - max(lonlat_data[:, 0])) / self.resolution)) + 1
-            ny = abs(int((y0 - max(lonlat_data[:, 1])) / self.resolution)) + 1
+            # x0 = min(lonlat_data[:, 0])
+            # y0 = min(lonlat_data[:, 1])
+            # nx = abs(int((x0 - max(lonlat_data[:, 0])) / self.resolution)) + 1
+            # ny = abs(int((y0 - max(lonlat_data[:, 1])) / self.resolution)) + 1
+            x0 = self.lon_min
+            y0 = self.lat_min
+            nx = abs(int((x0 - self.lon_max) / self.resolution)) + 1
+            ny = abs(int((y0 - self.lat_max) / self.resolution)) + 1
 
         x1 = x0 + self.resolution * (nx - 1)
         y1 = y0 + self.resolution * (ny - 1)
