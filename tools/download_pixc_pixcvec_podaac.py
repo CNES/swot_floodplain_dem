@@ -1,10 +1,10 @@
 """
-Download SWOT Level-2 products PIXC or PIXCVec from PODAAC
+Download PODAAC SWOT Level-2 products PIXC or PIXCVec from Earthdata interface.
 using NASA Earthdata services via the earthaccess library.
 
 The script allows:
 - Searching for SWOT PIXC / PIXCVec granules (versions C and D)
-- Filtering by time range, pass, tile, swath side, and CRID
+- Filtering by time range, bounding box, pass, tile and swath side, and CRID
 - Skipping already-downloaded and valid NetCDF files
 
 This script is designed to run on local Linux systems
@@ -34,7 +34,7 @@ from requests.exceptions import (
     ChunkedEncodingError
 )
 
-
+# print(earthaccess.search_data.__doc__)
 # Retry download function
 def download_with_retries(granule, outdir,
                           max_retries=5,
@@ -64,10 +64,10 @@ Download SWOT PIXC / PIXCVec granules from PODAAC.
 Usage examples:
 
   1) Download a version C granule with all options:
-     python download_pixc_pixvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXC -pts 497 199 L -st 2024-01-01T00:00:00 -et 2024-01-02T00:00:00 -crid PIC0
+     python download_pixc_pixcvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXC -pts 497 199 L -st 2024-01-01T00:00:00 -et 2024-01-02T00:00:00 -crid PIC0
 
   2) Download a version D granule with all options:
-     python download_pixc_pixvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXCVec_D -pts 196 185 R -st 2024-02-01T00:00:00 -et 2024-02-02T00:00:00 -crid PGD0
+     python download_pixc_pixcvec_podaac.py -d ./downloads -pd SWOT_L2_HR_PIXCVec_D -pts 196 185 R -st 2024-02-01T00:00:00 -et 2024-02-02T00:00:00 -crid PGD0
 """,
     formatter_class=argparse.RawTextHelpFormatter
 )
@@ -83,6 +83,13 @@ parser.add_argument("-pd", metavar="PRODUCT", required=True, dest="product",
 parser.add_argument("-pts", nargs=3, metavar=("PASS", "TILE", "SIDE"),
                     help="Filter by pass, tile, side (e.g., 5 12 L)"
                     )
+parser.add_argument(
+    "-box",
+    nargs=4,
+    type=float,
+    metavar=("LON_MIN", "LAT_MIN", "LON_MAX", "LAT_MAX"),
+    help="Bounding box: lon_min lat_min lon_max lat_max"
+                    )
 parser.add_argument("-st", metavar="START_TIME", type=str,
                     help="Start time (YYYY-MM-DDTHH:MM:SS)"
                     )
@@ -93,6 +100,9 @@ parser.add_argument("-crid", metavar="CRID",
                     help="CRID to filter (e.g., PIC0)")
 
 args = parser.parse_args()
+
+if args.pts and args.box:
+    parser.error("Use either -pts or -box, not both.")
 
 # Earthdata login
 earthaccess.login()
@@ -118,33 +128,76 @@ if not cid:
     sys.exit(1)
 
 print(f"Searching product: {prod}")
-granules = earthaccess.search_data(
-    concept_id=cid,
-    temporal=(args.st + "Z" if args.st else None,
-              args.et + "Z" if args.et else None),
-    count=500
-)
+
+search_kwargs = {
+    "concept_id": cid,
+    "count": -1
+}
+
+# Temporal filter
+if args.st or args.et:
+    search_kwargs["temporal"] = (
+        args.st + "Z" if args.st else None,
+        args.et + "Z" if args.et else None
+    )
+
+# Spatial filter (bbox)
+if args.box:
+    lon_min, lat_min, lon_max, lat_max = args.box
+
+    search_kwargs["bounding_box"] = (
+        lon_min,
+        lat_min,
+        lon_max,
+        lat_max
+    )
+
+# Granule name filter
+if args.pts:
+    p, t, s = args.pts
+    p = f"{int(p):03d}"
+    t = f"{int(t):03d}"
+    s = s[0].upper()
+
+    if args.crid:
+        search_kwargs["granule_name"] = (
+            f"SWOT*_{p}_{t}{s}_*_{args.crid}_*"
+        )
+    else:
+        search_kwargs["granule_name"] = (
+            f"SWOT*_{p}_{t}{s}_*"
+        )
+
+elif args.crid:
+    search_kwargs["granule_name"] = (
+        f"SWOT*_{args.crid}_*"
+    )
+
+print("CMR request:", search_kwargs)
+
+granules = earthaccess.search_data(**search_kwargs)
 
 print(f"Found {len(granules)} granules")
+results = []
+
 for g in granules:
+
     name = g["umm"]["GranuleUR"]
 
-    # Filter by pass/tile/side
+    # Safety check on pass/tile/side
     if args.pts:
-        p, t, s = args.pts
-        p = f"{int(p):03d}"
-        t = f"{int(t):03d}"
-        s = s[0].upper()
         if f"_{p}_" not in name or f"_{t}{s}_" not in name:
             continue
 
-    # Filter by CRID
-    if args.crid and f"_{args.crid}_" not in name:
-        continue
+    # Safety check on CRID
+    if args.crid:
+        if f"_{args.crid}_" not in name:
+            continue
 
     results.append(g)
 
-print(f"Total granules after filtering: {len(results)}")
+print(f"Granules retained after validation: {len(results)}")
+
 for g in results[:10]:
     print("  ", g["umm"]["GranuleUR"])
 
@@ -154,7 +207,7 @@ if resp.lower() != "y":
     sys.exit(0)
 
 # Download loop (parallelized)
-os.makedirs(args.dirs, exist_ok=True)
+os.makedirs(args.d, exist_ok=True)
 
 max_workers = 5  # Adjust according to your network
 
@@ -162,7 +215,7 @@ max_workers = 5  # Adjust according to your network
 def download_granule(g):
     """Download a single granule with retries, skip if already downloaded."""
     name = g["umm"]["GranuleUR"]
-    outdir = os.path.join(args.dirs, name.replace(".nc", ""))
+    outdir = os.path.join(args.d, name.replace(".nc", ""))
     os.makedirs(outdir, exist_ok=True)
 
     # Check if file already exists and is readable

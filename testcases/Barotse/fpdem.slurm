@@ -9,13 +9,13 @@
 
 # Load the conda environment
 module load conda
-conda activate /work/scratch/env/stephag/.conda/envs/FPDEM_eodag_env
-export PYTHONPATH=/work/SWOT/swotdev/swotdev/stephag/floodplain_dem/src/:$PYTHONPATH
-export PYTHONPATH=/work/SWOT/swotdev/swotdev/stephag/floodplain_dem/scripts/:$PYTHONPATH
+conda activate /work/scratch/env/lemrabl/.conda/envs/FPDEM_eodag_env_final
+export PYTHONPATH=/work/SWOT/swotdev/swotdev/lemrabl/floodplaindem/algos/floodplain_dem/src/:$PYTHONPATH
+export PYTHONPATH=/work/SWOT/swotdev/swotdev/lemrabl/floodplaindem/algos/floodplain_dem/scripts/:$PYTHONPATH
 
 # Export certificate to access internet during the run (needed to load basemaps with cartopy)
 export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt
 export SSL_CERT_DIR=/etc/pki/tls/certs
 
 # Launch the FPDEM algorithm
-python /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/scripts/process_full_processing_floodplain.py /work/SWOT/swotdev/swotdev/stephag/floodplain_dem/testcases/Barotse/SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+python /work/SWOT/swotdev/swotdev/lemrabl/floodplaindem/algos/floodplain_dem/scripts/process_full_processing_floodplain.py /work/SWOT/swotdev/swotdev/lemrabl/floodplaindem/algos/floodplain_dem/testcases/Barotse/SWOT_Param_L2_HR_FPDEM_Barotse.rdf

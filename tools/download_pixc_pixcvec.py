@@ -114,7 +114,7 @@ else:
     crid = []
 
 if args.provider:
-    providers = args.providers
+    providers = args.provider
 
 ########################################################################################################################
 # EODAG setup
@@ -230,9 +230,17 @@ if len(search_results) == 0:
 if 'hydroweb_next' in providers:
     new_search_results = []
     for res in search_results:
-        if res.properties["spatial:pass_id"] == int(pass_number):
-            if crid != [] and res.properties["processing:software"]["chain_version"] in crid:
-                new_search_results.append(res)
+
+        if args.pass_tile:
+            if res.properties["spatial:pass_id"] != int(pass_number):
+                continue
+
+        if crid != []:
+            if res.properties["processing:software"]["chain_version"] not in crid:
+                continue
+
+        new_search_results.append(res)
+
     search_results = new_search_results.copy()
     print('New total count : ', len(search_results))
 
