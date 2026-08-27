@@ -63,8 +63,8 @@ PIXCVec file list = /work/SWOT/swotdev/swotdev/stephag/floodplain/run/testcase_T
 
 ### Select fpdem model approach :
  
-# Bathtub ring method or a mix of bathtub and clustering and direct extraction of land
-# Choices : mixed or bathtub
+# Bathtub ring method or a mix of bathtub and direct extraction of land and clustering (with bathtub for water and direct for land)
+# Choices : mixed or bathtub or direct
 select_approach = mixed
 
 
