@@ -324,7 +324,7 @@ class Floodplain(object):
                     logging.warning('No points found in this water body!')
                     continue
 
-                if self.approach == 'mixed':
+                if self.approach == 'mixed' or self.approach == 'direct':
                     water_extractCateg = water_extract[(water_extract.classification == 3) |
                                                        (water_extract.classification == 4)]
                     water_extractCateg = water_extractCateg.loc[(water_extractCateg.sig0_qual == 0)]
@@ -348,7 +348,7 @@ class Floodplain(object):
                                                                                        'classification',
                                                                                        'azimuth_index',
                                                                                        'range_index']]])
-                    elif water_body_type == "WATER":
+                    elif water_body_type == "WATER" and self.approach == 'mixed':
                         logging.info('Bathtub ring method is applied')
                         res_bathtub = self.compute_bathtub_method(water_extract)
                         fpdem_land_pixel = pd.concat([fpdem_land_pixel, res_bathtub])
@@ -377,7 +377,7 @@ class Floodplain(object):
                         clust.get_water_soil_labels(water_extract, self.pekel_0_100_poly, self.poly_sword,
                                                     method=self.cluster_method_choice)
 
-                        if clust.sub_img_labeled_water is not None:
+                        if clust.sub_img_labeled_water is not None and self.approach == 'mixed':
                             geom = gpd.points_from_xy(clust.sub_img_labeled_water[:, 2],
                                                       clust.sub_img_labeled_water[:, 3])
                             water_extract_water = water_extract[water_extract.geometry.isin(geom)]

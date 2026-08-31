@@ -5,7 +5,7 @@ MIscellaneous routines
 Copyright (c) 2018, CNES
 """
 
-import os
+import os, sys
 import logging
 import numpy as np
 import pandas as pd

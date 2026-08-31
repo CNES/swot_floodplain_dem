@@ -13,7 +13,7 @@ import numpy as np
 import geopandas as gpd
 import xarray as xr
 import shapely
-from shapely.geometry import MultiPoint
+from shapely.geometry import MultiPoint, Polygon, MultiPolygon
 
 import toshp as shp
 import my_rdf_file as my_rdf
@@ -96,6 +96,8 @@ class Extract_Area(object):
                                                                                                     allow_holes=True)
             polygons.append(cncv_hl.geometry.values[0])
         polygons = shapely.unary_union(gpd.GeoDataFrame(geometry=polygons, crs=4326))
+        if isinstance(polygons, Polygon):
+            polygons = MultiPolygon([polygons])
         polygons = list(polygons.geoms)
         shp.polygons_to_file(self.output_file, polygons)
 

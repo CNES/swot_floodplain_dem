@@ -3,7 +3,7 @@
 Apply the MRF (Markov Random Field) method to extract bathymetry
 """
 
-import os
+import os, sys
 import logging
 import numpy as np
 import mahotas as mh
@@ -15,7 +15,28 @@ from skimage.morphology import erosion, dilation
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from spatial import compute_binary_mask
+
 import mrf_waterland_toolbox as toolbox
+
+
+# def meters_to_deg(step_m, latitude_deg):
+#     """
+#     Convert meters to degrees for lat/lon coordinates
+#
+#     :param step_m: Step inm meters
+#     :param latitude_deg: Latitude position
+#     :return: lat and lon in degrees
+#     """
+#     lat_rad = latitude_deg * np.pi / 180.
+#
+#     meters_per_deg_lat = 111_320
+#     meters_per_deg_lon = 111_320 * np.cos(lat_rad)
+#
+#     dlat = step_m / meters_per_deg_lat
+#     dlon = step_m / meters_per_deg_lon
+#
+#     return dlat, dlon
 
 
 def get_grid_lat_lon_ref(refdem_grid, path_ref_dem='', pixc='', resolution=0.000277777, margin=[0., 0.]):
@@ -96,11 +117,10 @@ def get_grid_lat_lon_ref2(refdem_grid, path_ref_dem='', lonlat_extrema=[], resol
     return ref_dem, latitude_ref_dem, longitude_ref_dem
 
 
-def extract_params_from_pixc(file, root, ref_dem, min_crosstrack=0):
+def extract_params_from_pixc(file, root, ref_dem, min_crosstrack=0, min_size=1000.):
     """
     Extract all interesting parameters, like h and sig0, from the PIXC file
 
-    :param min_crosstrack:
     :param file: PIXC filename
     :param root: path to PIXC file
     :param ref_dem: reference grid for rasterization of PIXC
@@ -160,9 +180,31 @@ def extract_params_from_pixc(file, root, ref_dem, min_crosstrack=0):
         points['diff'] = (points['pole_tide'] + points['load_tide_got'] + points['load_tide_fes'] +
                           points['solid_earth_tide'] + points['geoid'])
 
-        points_classif = points.classification.values
-        points_crosstrack = points.cross_track.values
-        ind_classif = np.where((points_classif > 2) & (np.abs(points_crosstrack) > min_crosstrack))
+        # Pre-processing of PIXC
+        # Filter out classif 1 and crosstrack lower than threshold
+        valid = (
+            (points.classification.values > 2) &
+            (np.abs(points.cross_track.values) > min_crosstrack)
+        )
+        # Filter arrays according to valid points
+        az = points.azimuth_index.values[valid].astype(int)
+        ra = points.range_index.values[valid].astype(int)
+        area = points.pixel_area.values[valid]
+        # Create water mask
+        water_mask = compute_binary_mask(points.attrs['interferogram_size_azimuth'],
+                                         points.attrs['interferogram_size_range'],
+                                         az,
+                                         ra)
+        # Label all clusters
+        labeled, _ = mh.label(water_mask, Bc=np.ones((3, 3)))
+        labels_pts = labeled[az, ra]
+        # Calculate clusters' size
+        sizes = np.bincount(labels_pts, weights=area)
+        # Filter out small sizes clusters
+        keep = sizes > min_size
+        points_keep = keep[labels_pts]
+        # Get indexes of remaining points
+        ind_classif = np.where(valid)[0][points_keep]
 
         points_lon = points.longitude.values[ind_classif]
         points_lat = points.latitude.values[ind_classif]
