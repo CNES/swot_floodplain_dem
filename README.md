@@ -40,13 +40,13 @@ This environment must be activated before launching the FPDEM algorithm.
 
 ## PIXC download
 
-First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading scripts. 
-The providers 'swot' and 'hydroweb_next' are the providers used in the code.
-Edit the EODAG configuration file and insert the appropriate authentication information using your personal SWOT and/or Hydroweb.next credentials. 
+First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading scripts.  
+The providers 'swot' and 'hydroweb_next' are the providers used in the code.  
+Edit the EODAG configuration file and insert the appropriate authentication information using your personal SWOT and/or Hydroweb.next credentials.  
 
 To complete the swot provider configuration, you will need:
-    - A REGARDS account (email and password)
-    - Set up the EMAIl and PASSWORD in eodag.yml
+  - A REGARDS account (email and password)
+  - Set up the EMAIl and PASSWORD in eodag.yml
 
 To complete the hydroweb_next provider configuration, you will need:
   - A Hydroweb.next account (username and password), which can be obtained by registering on the Hydroweb.next portal here: https://hydroweb.next.theia-land.fr/
@@ -76,12 +76,12 @@ $ python download_pixc_pixcvec.py -d [downloading_directory] -prov hydroweb_next
 
 where -d is the argument to choose the downloading directory, -prov the provider, -prod the wanted products (here PIXC and PIXCVec), -pass the pass 269, tile 69 and tile side Right, -c the CRID PIC0.
 
-This script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments. 
-It will show the list and ask the user to continue to the downloading part. 
+This script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments.  
+It will show the list and ask the user to continue to the downloading part.
 
 ## Running the FPDEM algorithm
 
-The first step to run the FPDEM code is to go into one of the testcases directory located in /floodplain/run/. 
+The first step to run the FPDEM code is to go into one of the testcases directory located in /floodplain/run/.  
 Several testcases are available: 
 
 - Orient (lake, France)
@@ -105,9 +105,8 @@ The FPDEM algorithm can be executed on a computing cluster using the SLURM sched
 
 ### Notebook execution
 
-The FPDEM workflow can be explored and executed through Jupyter notebook. 
+The FPDEM workflow can be explored and executed through Jupyter notebook.  
 Before starting a notebook, make sure that the conda environment is activated.
-If required, additional certificates should also be exported to enable the display of basemaps in Cartopy figures.
 
 Launch Jupyter Notebook from the project directory:
 
@@ -131,12 +130,12 @@ To launch the processing on a SLURM-managed cluster:
 $ sbatch fpdem.slurm
 ```
 
-The `fpdem.slurm` script automatically activates the conda environment and performs the required exports. 
+The `fpdem.slurm` script automatically activates the conda environment and performs the required exports.  
 Ensure that all paths defined in the SLURM script are correctly configured before submission.
 
 ### Local execution
 
-For local execution, make sure that the conda environment is activated.
+For local execution, make sure that the conda environment is activated.  
 After activating the conda environment, the `PYTHONPATH` must be configured to include the `src/` and `scripts/` directories:
 
 ```
