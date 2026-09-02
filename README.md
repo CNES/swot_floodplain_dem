@@ -24,11 +24,9 @@ The FPDEM algorithm contains 3 main scripts and 1 workflow script (which launche
 
 ## Code download
 
-The FPDEM algorithm can be obtained on the CNES gitlab: https://gitlab.cnes.fr/desrochesd/floodplain_dem#utilisation
+The FPDEM algorithm can be obtained on the CNES github: https://github.com/CNES/swot_floodplain_dem
 
-Use the command git clone. 
-
-NB: The access needs to be configured beforehand in order to clone the floodplain repository. 
+Use the command git clone.
 
 ## Environment creation
 
@@ -42,11 +40,29 @@ This environment must be activated before launching the FPDEM algorithm.
 
 ## PIXC download
 
-First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading script. The providers 'swot' and 'hydroweb_next' are the providers used in the code. For 'swot', the user needs to have an account on REGARDS and set up the EMAIl and PASSWORD in eodag.yml. For 'hydroweb_next', access to hydroweb_next website is required, and an apikey is needed and needs to be set up in eodag.yml. 
+First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading script. 
+The providers 'swot' and 'hydroweb_next' are the providers used in the code.
+Edit the EODAG configuration file and insert the appropriate authentication information using your personal SWOT and/or HydroWeb Next credentials. 
 
-To download the PIXC products encompassing the AOI, the user can use the code download_pixc_pixcvec.py located in tools/.
+To complete the swot provider configuration, you will need:
+    - A REGARDS account (username and password)
+    - Set up the EMAIl and PASSWORD in eodag.yml
 
-In order to know the different parameters available to select the PIXC tiles, the following command can be used: 
+To complete the hydroweb_next provider configuration, you will need:
+  - A HydroWeb Next account (username and password), which can be obtained by registering on the HydroWeb Next portal here: https://hydroweb.next.theia-land.fr 
+  - Set up a HydroWeb Next API key, which can be generated from your HydroWeb Next user account.
+
+To download the PIXC products covering the AOI, several scripts are available in the `tools/` directory:
+
+- **Downloading from the TREX cluster**:
+  - `download_SWOT_products.py`
+  - `download_pixc_pixcvec.py`
+
+- **Downloading from a local machine**:
+  - `download_SWOT_products.py`
+  - `download_pixc_pixcvec_podaac.py`
+
+In order to know the different parameters available to select the PIXC tiles, use: 
 
 ```
 $ python download_pixc_pixcvec.py -h
@@ -55,20 +71,29 @@ $ python download_pixc_pixcvec.py -h
 An example of a command to launch the code is: 
 
 ```
-$ python download_pixc_pixcvec.py -d [downloading_directory] -prov hydroweb_next -prod SWOT_L2_HR_PIXC SWOT_L2_HR_PIXCVEC -pass 264 69 Right -c PIC0 -conv 1
+$ python download_pixc_pixcvec.py -d [downloading_directory] -prov hydroweb_next -prod SWOT_L2_HR_PIXC SWOT_L2_HR_PIXCVEC -pass 264 69 Right -c PIC0
 ```
 
-where -d is the argument to choose the downloading directory, -prov the provider, -prod the wanted products (here PIXC and PIXCVec), -pass the pass 269, tile 69 and tile side Right, -c the CRID PIC0 and -conv the flag to choose if the user wants to convert the netcdf product into shapefile. 
+where -d is the argument to choose the downloading directory, -prov the provider, -prod the wanted products (here PIXC and PIXCVec), -pass the pass 269, tile 69 and tile side Right, -c the CRID PIC0.
 
-The script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments. It will show the list and ask the user to continue to the downloading part. 
+The script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments. 
+It will show the list and ask the user to continue to the downloading part. 
 
-## Code execution
+## Running the FPDEM algorithm
 
-The first step to run the FPDEM code is to go into one of the testcases directory located in /floodplain/run/. Several testcases are available: 
+The first step to run the FPDEM code is to go into one of the testcases directory located in /floodplain/run/. 
+Several testcases are available: 
 
 - Orient (lake, France)
-- Barotse (floodplain/river, Zambia)
+- Barotse (floodplain / river, Zambia)
 - Lajeodo (river, Brazil)
+- Bijagos (coastal archipelago, Guinea-Bissau)
+- Congo_Mbamu_island (river island, Democratic Republic of the Congo)
+- Haditha (river / reservoir, Iraq)
+- Koshi (braided river / floodplain, Nepal)
+- Tele_Mali (floodplain wetland, Mali)
+- Toshka (desert lakes, Egypt)
+- Wadden (tidal flats / coastal wetland, Netherlands-Germany-Denmark)
 
 Four files are present in each testcase directory:
 - A readme file
@@ -76,30 +101,68 @@ Four files are present in each testcase directory:
 - The slurm file : fpdem.slurm
 - A notebook file : FPDEM_XXX_testcase.ipynb
 
-The first step after loading the conda environment is to export the PYTHONPATH for the scripts/ and src/ directories:
-```
-$ export PYTHONPATH=[your_path]/floodplain_dem/src/:$PYTHONPATH
-$ export PYTHONPATH=[your_path]/floodplain_dem/scripts/:$PYTHONPATH
-```
-If some certicates need to be exported to have basemaps with cartopy plots, they should be exported too. This also applies before starting the notebook.
+The FPDEM algorithm can be executed either on a computing cluster using the SLURM scheduler or locally from a terminal or a Python IDE.
 
-To launch the FPDEM code with slurm use the following command (the loading of the environment and the exports mentionned above are performed within the fpdem.slurm so make sure to define the paths corectly):
+### Notebook execution
+
+The FPDEM workflow can be explored and executed through Jupyter notebook. 
+Before starting a notebook, make sure that the conda environment is activated.
+If required, additional certificates should also be exported to enable the display of basemaps in Cartopy figures.
+
+Launch Jupyter Notebook from the project directory:
+
+```
+$ jupyter notebook
+```
+
+or launch JupyterLab:
+
+```
+$ jupyter lab
+```
+
+Then open the desired notebook from your browser and select the appropriate conda kernel.
+
+### Cluster execution (SLURM)
+
+To launch the processing on a SLURM-managed cluster:
+
 ```
 $ sbatch fpdem.slurm
 ```
 
-To launch the code without slurm :
+The `fpdem.slurm` script automatically activates the conda environment and performs the required exports. 
+Ensure that all paths defined in the SLURM script are correctly configured before submission.
+
+### Local execution
+
+For local execution, make sure that the conda environment is activated.
+After activating the conda environment, the `PYTHONPATH` must be configured to include the `src/` and `scripts/` directories:
+
+```
+$ export PYTHONPATH=[your_path]/floodplain_dem/src/:$PYTHONPATH
+$ export PYTHONPATH=[your_path]/floodplain_dem/scripts/:$PYTHONPATH
+```
+
+If required, additional certificates should also be exported to enable the display of basemaps in Cartopy figures.
+
+The complete processing chain can be launched with:
+
 ```
 $ python ../../scripts/process_full_processing_floodplain.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
 ```
-or 
+
+Alternatively, each processing step can be run independently:
+
 ```
 $ python ../../scripts/process_floodplain.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+
 $ python ../../scripts/process_extract_area.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
+
 $ python ../../scripts/process_raster.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
 ```
 
-
+Running the workflow step by step can be useful for debugging, testing individual modules, or reprocessing only a specific stage of the pipeline.
 
 
 <span style="display:none;">
@@ -111,4 +174,3 @@ $ python ../../scripts/process_raster.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
 - [Demandes de support à l'UL](https://confluence.cnes.fr/display/USINELOG/Les+demandes+de+support)
 - Vos propres pages de documentation :D
 </span>
-

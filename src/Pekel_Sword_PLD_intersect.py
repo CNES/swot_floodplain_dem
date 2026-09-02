@@ -109,22 +109,36 @@ def extract_Pekel_polygon(data_Pekel, occ_min=0, occ_max=100, bufsize=0.01):
 
 # From the science tiles file retrieve the geometry of the selected tiles
 def get_tiles_geom(gtg_tile_to_open_forMask, gtg_path_fname_to_orbits):
-    # Get tiles attributes to be read in orbits file
-    gtg_wanted_tiles = [f'PIXC tile {i}' for i in gtg_tile_to_open_forMask]
-    # Read orbits file
+    # Get tiles attributes to be read in a specific CNES orbits file
+    gtg_wanted_tiles = [f"PIXC tile {i}" for i in gtg_tile_to_open_forMask]
     gtg_tile_file = gpd.read_file(gtg_path_fname_to_orbits)
+
     # Keep wanted tiles from orbits file
-    gtg_ind = np.where(gtg_tile_file['TILE_NAME'].isin(gtg_wanted_tiles))[0]
+    if "TILE_NAME" in gtg_tile_file.columns:
+        gtg_ind = np.where(gtg_tile_file["TILE_NAME"].isin(gtg_wanted_tiles))[0]
+
+    elif "TILE_REF" in gtg_tile_file.columns:
+        gtg_ind = np.where(gtg_tile_file["TILE_REF"].isin(gtg_tile_to_open_forMask))[0]
+
+    else:
+        raise KeyError(
+            f"Invalid SWOT tiles shapefile. Expected a column named "
+            f"'TILE_NAME' or 'TILE_REF', but found: "
+            f"{list(gtg_tile_file.columns)}"
+        )
+
     gtg_tile_file2 = gtg_tile_file.loc[list(gtg_ind)].reset_index()
+
     # Get mask from geometry of tiles
     if len(gtg_tile_file2) > 1:
         gtg_mask = gtg_tile_file2.unary_union
         gtg_mask = gpd.GeoDataFrame(geometry=[gtg_mask], crs=4326)
     else:
         gtg_mask = gtg_tile_file2.geometry
-        gtg_mask = gpd.GeoDataFrame(geometry=gtg_mask.geometry, crs=4326)
-    #
+        gtg_mask = gpd.GeoDataFrame(geometry=gtg_mask, crs=4326)
+
     return gtg_mask
+
 
 # Select utm coordinates or zone number or zone letter depending on the choice made
 def utm_to_latlon(coords, cflag):
