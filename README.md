@@ -40,17 +40,17 @@ This environment must be activated before launching the FPDEM algorithm.
 
 ## PIXC download
 
-First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading script. 
+First, the file eodag.yml (to be placed in : ~/.config/eodag/eodag.yml) needs to be set up to use the PIXC downloading scripts. 
 The providers 'swot' and 'hydroweb_next' are the providers used in the code.
-Edit the EODAG configuration file and insert the appropriate authentication information using your personal SWOT and/or HydroWeb Next credentials. 
+Edit the EODAG configuration file and insert the appropriate authentication information using your personal SWOT and/or Hydroweb.next credentials. 
 
 To complete the swot provider configuration, you will need:
-    - A REGARDS account (username and password)
+    - A REGARDS account (email and password)
     - Set up the EMAIl and PASSWORD in eodag.yml
 
 To complete the hydroweb_next provider configuration, you will need:
-  - A HydroWeb Next account (username and password), which can be obtained by registering on the HydroWeb Next portal here: https://hydroweb.next.theia-land.fr 
-  - Set up a HydroWeb Next API key, which can be generated from your HydroWeb Next user account.
+  - A Hydroweb.next account (username and password), which can be obtained by registering on the Hydroweb.next portal here: https://hydroweb.next.theia-land.fr/
+  - Set up a Hydroweb.next API key, which can be generated from your Hydroweb.next user account.
 
 To download the PIXC products covering the AOI, several scripts are available in the `tools/` directory:
 
@@ -76,7 +76,7 @@ $ python download_pixc_pixcvec.py -d [downloading_directory] -prov hydroweb_next
 
 where -d is the argument to choose the downloading directory, -prov the provider, -prod the wanted products (here PIXC and PIXCVec), -pass the pass 269, tile 69 and tile side Right, -c the CRID PIC0.
 
-The script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments. 
+This script will start by looking onto the providers 'swot' and 'hydroweb_next', if none is specified, to find the list of products corresponding to the user arguments. 
 It will show the list and ask the user to continue to the downloading part. 
 
 ## Running the FPDEM algorithm
@@ -101,7 +101,7 @@ Four files are present in each testcase directory:
 - The slurm file : fpdem.slurm
 - A notebook file : FPDEM_XXX_testcase.ipynb
 
-The FPDEM algorithm can be executed either on a computing cluster using the SLURM scheduler or locally from a terminal or a Python IDE.
+The FPDEM algorithm can be executed on a computing cluster using the SLURM scheduler, locally from a terminal or a Python IDE, or from a Jupyter Notebook environment.
 
 ### Notebook execution
 
@@ -144,7 +144,7 @@ $ export PYTHONPATH=[your_path]/floodplain_dem/src/:$PYTHONPATH
 $ export PYTHONPATH=[your_path]/floodplain_dem/scripts/:$PYTHONPATH
 ```
 
-If required, additional certificates should also be exported to enable the display of basemaps in Cartopy figures.
+Certificates should also be exported to enable the display of basemaps in Cartopy figures.
 
 The complete processing chain can be launched with:
 
@@ -162,7 +162,7 @@ $ python ../../scripts/process_extract_area.py SWOT_Param_L2_HR_FPDEM_Barotse.rd
 $ python ../../scripts/process_raster.py SWOT_Param_L2_HR_FPDEM_Barotse.rdf
 ```
 
-Running the workflow step by step can be useful for debugging, testing individual modules, or reprocessing only a specific stage of the pipeline.
+Running the workflow step by step can be useful for reprocessing only a specific stage of the pipeline.
 
 
 <span style="display:none;">
