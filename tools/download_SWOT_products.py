@@ -3,18 +3,15 @@ Download SWOT products (mainly PIXC and/or PIXCVec) from hydroweb.next
 ! An API key must be set up on hydroweb.next website !
 """
 
-import sys
 import os
 import argparse
 import getopt
-import xarray as xr
 import time
-import copy
-import pystac
 from pystac_client import Client
 import requests
 from requests.exceptions import ReadTimeout, ChunkedEncodingError
 from urllib3.exceptions import ReadTimeoutError, ProtocolError, IncompleteRead
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from tqdm import tqdm
 
@@ -27,7 +24,7 @@ workdir = f"{os.getcwd()}/FPDEM_products"
 # apikey = ""
 
 product = ["SWOT_L2_HR_PIXC", "SWOT_L2_HR_PIXCVEC"]
-crid = ['PIC0', 'PID0']
+crid = ['PIC0', 'PIC2', 'PID0', 'PGD0']
 
 ########################################################################################################################
 
@@ -166,13 +163,13 @@ if args.starttime or args.endtime:
     if 'query' not in search_parameters:
         search_parameters["query"] = {}
     if args.starttime:
+        if "end_datetime" not in search_parameters["query"]:
+            search_parameters["query"]["end_datetime"] = {}
+        search_parameters["query"]["end_datetime"]["gte"] = args.starttime
+    if args.endtime:
         if "start_datetime" not in search_parameters["query"]:
             search_parameters["query"]["start_datetime"] = {}
-        search_parameters["query"]["start_datetime"]["lte"] = args.starttime
-    if args.endtime:
-        if "send_datetime" not in search_parameters["query"]:
-            search_parameters["query"]["end_datetime"] = {}
-        search_parameters["query"]["end_datetime"]["gte"] = args.endtime
+        search_parameters["query"]["start_datetime"]["lte"] = args.endtime
 
 if args.passtile:
     if 'query' not in search_parameters:
@@ -205,7 +202,6 @@ print('Search request :', search_parameters)
 
 # Search the client
 search = client.search(**search_parameters)
-print(f"{search.matched()} items found")
 if search.matched() > 200:
     print("! Search parameter max_items set to 200 => You might want to increase it !")
 items = list(search.items())
@@ -230,42 +226,65 @@ else:
 
 # Count the items found and print their name
 new_items = new_items2.copy()
-print('New count : ', len(new_items))
+print('Number of items found  : ', len(new_items))
 # List all remaining products
 for item in new_items:
     print(get_item_info(item))
 
 # Downloading files
+def download_item(item):
+    for name, asset in item.assets.items():
+        # Only the netcdf will be downloaded
+        if name[-3:] == '.nc':
+            filename = name[:-3]
+            filepath = os.path.join(workdir, filename)
+
+            for itry in range(5):
+                try:
+                    download_file(asset.href, f"{filepath}.nc")
+                    print(f"\nDownloaded : {filepath}.nc")
+                    break
+
+                except ReadTimeout as e:
+                    print("ReadTimeout ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
+                    time.sleep(60 * 5)
+
+                except ReadTimeoutError as e:
+                    print("ReadTimeoutError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
+                    time.sleep(60 * 5)
+
+                except ChunkedEncodingError as e:
+                    print("ChunkedEncodingError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
+                    time.sleep(60 * 5)
+
+                except ProtocolError as e:
+                    print("ProtocolError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
+                    time.sleep(60 * 5)
+
+                except IncompleteRead as e:
+                    print("IncompleteRead ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
+                    time.sleep(60 * 5)
+
+                except TimeoutError as e:
+                    print("TimeoutError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
+                    time.sleep(60 * 5)
+
+            break
+
+
 if input(f"Do you want to continue and download products? [y/n] ") == "y":
-    for item in new_items:
-        for name, asset in item.assets.items():
-            # Only the netcdf will be downloaded
-            if name[-3:] == '.nc':
-                filename = name[:-3]
-                filepath = os.path.join(workdir, filename)
 
-                for itry in range(5):
-                    try:
-                        download_file(asset.href, f"{filepath}.nc")
-                        break
-                    except ReadTimeout as e:
-                        print("ReadTimeout ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
-                        time.sleep(60 * 5)
-                    except ReadTimeoutError as e:
-                        print("ReadTimeoutError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
-                        time.sleep(60 * 5)
-                    except ChunkedEncodingError as e:
-                        print("ChunkedEncodingError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
-                        time.sleep(60 * 5)
-                    except ProtocolError as e:
-                        print("ProtocolError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
-                        time.sleep(60 * 5)
-                    except IncompleteRead as e:
-                        print("IncompleteRead ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
-                        time.sleep(60 * 5)
-                    except TimeoutError as e:
-                        print("TimeoutError ERROR hydroweb.next request attempt number %i unsuccessful" % (itry + 1))
-                        time.sleep(60 * 5)
+    # Number of simultaneous downloads
+    max_workers = 8
 
-                print(f"\nDownloaded : {filepath}.nc")
-                break
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(download_item, item)
+            for item in new_items
+        ]
+
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"\nDownload ERROR: {e}")
